@@ -1,0 +1,21 @@
+.gradle/
+.kotlin/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+### Java ###
+*.class
+*.jar
+hs_err_pid*
+
+### IDE ###
+.idea/
+*.iml
+.vscode/
+out/
+
+### OS ###
+.DS_Store
+
+### Local secrets ###
+.env

@@ -1,0 +1,40 @@
+name: CD
+
+# Publishes libraries to Entur's JFrog Artifactory on every push to main.
+# entur/gha-artifactory's update-version action bumps the patch version in
+# gradle.properties and pushes that back to main before publishing, so every
+# merge gets a new released version. See https://github.com/entur/gha-artifactory.
+on:
+  push:
+    branches: [main]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - uses: bufbuild/buf-setup-action@v1
+        with:
+          version: "1.73.0"
+
+      - uses: arduino/setup-protoc@v3
+        with:
+          version: "36.1"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update version
+        uses: entur/gha-artifactory/.github/actions/update-version@v1
+
+      - name: Publish to JFrog Artifactory
+        uses: entur/gha-artifactory/.github/actions/maven-publish@v1
+        env:
+          ARTIFACTORY_AUTH_USER: ${{ secrets.ARTIFACTORY_AUTH_USER }}
+          ARTIFACTORY_AUTH_TOKEN: ${{ secrets.ARTIFACTORY_AUTH_TOKEN }}
