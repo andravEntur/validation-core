@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package entur.validation.v1;
+import "google/api/field_behavior.proto";
+import "google/protobuf/timestamp.proto";
+import "gnostic/openapi/v3/annotations.proto";
+import "google/protobuf/duration.proto";
+
+
+message Result{
+
+ int64 rule_id = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (gnostic.openapi.v3.property) = { example: { yaml: "\"1\"" } }
+ ];
+
+ int64 delivery_id = 2 [
+    (google.api.field_behavior) = REQUIRED,
+    (gnostic.openapi.v3.property) = { example: { yaml: "\"1\"" } }
+ ];
+
+ google.protobuf.Timestamp time_stamp = 3 [
+    (google.api.field_behavior) = REQUIRED,
+    (gnostic.openapi.v3.property) = { example: { yaml: "\"2024-01-01T00:00:00Z\"" } }
+ ];
+
+ google.protobuf.Duration duration = 4 [
+    (google.api.field_behavior) = REQUIRED,
+    (gnostic.openapi.v3.property) = { example: { yaml: "\"100ms\"" } }
+ ];
+
+}

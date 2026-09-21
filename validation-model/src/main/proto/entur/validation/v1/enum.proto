@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package entur.validation.v1;
+
+enum Severity {
+  SEVERITY_UNSPECIFIED = 0;
+  ERROR = 1;
+  WARNING = 2;
+  INFO = 3;
+}
+
+enum RuleType {
+    RULE_TYPE_UNSPECIFIED = 0;
+    STRUCTURAL = 1;
+    INPUT = 2;
+    CROSS = 3;
+}
