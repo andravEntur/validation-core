@@ -39,4 +39,10 @@ jobs:
           against: "https://github.com/${{ github.repository }}.git#branch=main"
 
       - name: Build and test
+        # Each API module's processResources depends on its copyOpenApiSpec, so
+        # this regenerates every committed spec under specs/ from the
+        # current .proto files.
         run: ./gradlew build
+
+      - name: Verify generated OpenAPI specs are committed
+        run: git diff --exit-code -- specs/
