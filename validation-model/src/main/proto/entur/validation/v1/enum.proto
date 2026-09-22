@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package entur.validation.v1;
+
+option go_package = "github.com/entur/validation-core/gen/entur/validation/v1;validationv1";
+option java_multiple_files = true;
+option java_package = "no.entur.validation.proto.v1";
+
+// How severely a validation rule's failure should be treated.
+enum Severity {
+  // Unspecified severity. This is an invalid value.
+  SEVERITY_UNSPECIFIED = 0;
+  // Blocks further parsing or processing of the data outright.
+  CRITICAL = 1;
+  // Blocks the dataset, e.g. duplicate ids, invalid or missing data.
+  ERROR = 2;
+  // Non-blocking: suspicious data, data that will become an ERROR later, or that is ignored/redefined.
+  WARNING = 3;
+  // Informational only, e.g. missing recommended data or a future WARNING.
+  INFO = 4;
+}

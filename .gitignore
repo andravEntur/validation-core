@@ -19,3 +19,6 @@ out/
 
 ### Local secrets ###
 .env
+
+### Claude Code ###
+.claude/
