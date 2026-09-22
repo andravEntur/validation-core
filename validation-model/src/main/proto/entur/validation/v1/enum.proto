@@ -2,6 +2,10 @@ syntax = "proto3";
 
 package entur.validation.v1;
 
+option java_package = "no.entur.validation.proto.v1";
+option java_multiple_files = true;
+option go_package = "github.com/entur/validation-core/gen/entur/validation/v1;validationv1";
+
 enum Severity {
   SEVERITY_UNSPECIFIED = 0;
   ERROR = 1;

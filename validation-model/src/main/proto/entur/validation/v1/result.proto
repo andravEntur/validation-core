@@ -7,6 +7,11 @@ import "gnostic/openapi/v3/annotations.proto";
 import "google/protobuf/duration.proto";
 import "entur/validation/v1/enum.proto";
 
+option java_package = "no.entur.validation.proto.v1";
+option java_multiple_files = true;
+option go_package = "github.com/entur/validation-core/gen/entur/validation/v1;validationv1";
+
+
 
 message Result{
  int64 rule_id = 1 [
