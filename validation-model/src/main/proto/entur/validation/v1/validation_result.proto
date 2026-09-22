@@ -50,10 +50,7 @@ message Message{
     (google.api.field_behavior) = REQUIRED,
     (gnostic.openapi.v3.property) = { example: { yaml: "\"This is a message.\"" } }
   ];
-  repeated string locations = 2 [
-    (google.api.field_behavior) = REQUIRED,
-    (gnostic.openapi.v3.property) = { example: { yaml: "[\"file1.txt\", \"file2.txt\"]" } }
-  ];
+
   Severity severity = 3 [
      (google.api.field_behavior) = REQUIRED,
      (gnostic.openapi.v3.property) = { example: { yaml: "\"ERROR\"" } }
