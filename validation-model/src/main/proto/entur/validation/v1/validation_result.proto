@@ -47,7 +47,7 @@ message ValidationResult {
 
   // The individual findings produced by this validation run.
   repeated Message messages = 6 [
-    (google.api.field_behavior) = REQUIRED,
+    (google.api.field_behavior) = OPTIONAL,
     (gnostic.openapi.v3.property) = {
       example: {yaml: "[{\"message\": \"This is a message.\", \"severity\": \"ERROR\", \"location_details\": [{\"file_name\": \"file1.txt\", \"line_number\": 10, \"column_number\": 5}]}]"}
     }
