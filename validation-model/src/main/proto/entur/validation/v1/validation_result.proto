@@ -99,14 +99,14 @@ message Location {
     }
   ];
   // The line number within the file, if applicable.
-  int32 line_number = 2 [
+  optional int32 line_number = 2 [
     (google.api.field_behavior) = OPTIONAL,
     (gnostic.openapi.v3.property) = {
       example: {yaml: "10"}
     }
   ];
   // The column number within the line, if applicable.
-  int32 column_number = 3 [
+  optional int32 column_number = 3 [
     (google.api.field_behavior) = OPTIONAL,
     (gnostic.openapi.v3.property) = {
       example: {yaml: "5"}
