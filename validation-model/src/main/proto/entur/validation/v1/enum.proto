@@ -19,10 +19,3 @@ enum Severity {
   // Informational only, e.g. missing recommended data or a future WARNING.
   INFO = 4;
 }
-
-enum RuleType {
-    RULE_TYPE_UNSPECIFIED = 0;
-    STRUCTURAL = 1;
-    INPUT = 2;
-    CROSS = 3;
-}
