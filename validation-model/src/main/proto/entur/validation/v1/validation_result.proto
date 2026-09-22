@@ -13,7 +13,7 @@ option go_package = "github.com/entur/validation-core/gen/entur/validation/v1;va
 
 
 message ValidationResult{
- int32 rule_id = 1 [
+ int32 validation_rule_id = 1 [
     (google.api.field_behavior) = REQUIRED,
     (gnostic.openapi.v3.property) = { example: { yaml: "\"1\"" } }
  ];
