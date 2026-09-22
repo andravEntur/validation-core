@@ -66,15 +66,15 @@ message Message{
 }
 
 message Location{
-  string file = 1 [
+  string file_name = 1 [
     (google.api.field_behavior) = REQUIRED,
     (gnostic.openapi.v3.property) = { example: { yaml: "\"file1.txt\"" } }
   ];
-  int32 line = 2 [
+  int32 line_number = 2 [
     (google.api.field_behavior) = OPTIONAL,
     (gnostic.openapi.v3.property) = { example: { yaml: "\"10\"" } }
   ];
-  int32 column = 3 [
+  int32 column_number = 3 [
     (google.api.field_behavior) = OPTIONAL,
     (gnostic.openapi.v3.property) = { example: { yaml: "\"5\"" } }
   ];
