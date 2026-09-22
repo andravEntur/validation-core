@@ -55,8 +55,9 @@ message Message{
     (google.api.field_behavior) = REQUIRED,
     (gnostic.openapi.v3.property) = { example: { yaml: "[\"file1.txt\", \"file2.txt\"]" } }
   ];
+
   Severity severity = 5 [
      (google.api.field_behavior) = REQUIRED,
-     (gnostic.openapi.v3.property) = { example: { yaml: "\"HIGH\"" } }
+     (gnostic.openapi.v3.property) = { example: { yaml: "\"ERROR\"" } }
   ];
 }
