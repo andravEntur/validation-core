@@ -4,7 +4,6 @@ package entur.validation.v1;
 import "google/api/field_behavior.proto";
 import "google/protobuf/timestamp.proto";
 import "gnostic/openapi/v3/annotations.proto";
-import "google/protobuf/duration.proto";
 import "entur/validation/v1/enum.proto";
 
 option java_package = "no.entur.validation.proto.v1";
@@ -13,30 +12,30 @@ option go_package = "github.com/entur/validation-core/gen/entur/validation/v1;va
 
 
 
-message Result{
- int64 rule_id = 1 [
+message ValidationResult{
+ int32 rule_id = 1 [
     (google.api.field_behavior) = REQUIRED,
     (gnostic.openapi.v3.property) = { example: { yaml: "\"1\"" } }
  ];
 
- int64 delivery_id = 2 [
+ int32 delivery_id = 2 [
     (google.api.field_behavior) = REQUIRED,
     (gnostic.openapi.v3.property) = { example: { yaml: "\"1\"" } }
  ];
 
- google.protobuf.Timestamp start = 3 [
+ google.protobuf.Timestamp start_time = 3 [
     (google.api.field_behavior) = REQUIRED,
     (gnostic.openapi.v3.property) = { example: { yaml: "\"2024-01-01T00:00:00Z\"" } }
  ];
 
- google.protobuf.Duration duration = 4 [
+ google.protobuf.Timestamp end_time = 4 [
     (google.api.field_behavior) = REQUIRED,
-    (gnostic.openapi.v3.property) = { example: { yaml: "\"100ms\"" } }
+    (gnostic.openapi.v3.property) = { example: { yaml: "\"2024-01-01T00:00:00Z\"" } }
  ];
 
  repeated Message messages = 6 [
     (google.api.field_behavior) = REQUIRED,
-    (gnostic.openapi.v3.property) = { example: { yaml: "[{\"message\": \"This is a message.\", \"files\": [\"file1.txt\", \"file2.txt\"]}]" } }
+    (gnostic.openapi.v3.property) = { example: { yaml: "[{\"message\": \"This is a message.\", \"locations\": [\"file1.txt\", \"file2.txt\"], \"severity\": \"ERROR\", \"location_details\": [{\"file\": \"file1.txt\", \"line\": 10, \"column\": 5}]}]" } }
  ];
 
  bool success = 7 [
@@ -51,13 +50,32 @@ message Message{
     (google.api.field_behavior) = REQUIRED,
     (gnostic.openapi.v3.property) = { example: { yaml: "\"This is a message.\"" } }
   ];
-  repeated string files = 2 [
+  repeated string locations = 2 [
     (google.api.field_behavior) = REQUIRED,
     (gnostic.openapi.v3.property) = { example: { yaml: "[\"file1.txt\", \"file2.txt\"]" } }
   ];
-
-  Severity severity = 5 [
+  Severity severity = 3 [
      (google.api.field_behavior) = REQUIRED,
      (gnostic.openapi.v3.property) = { example: { yaml: "\"ERROR\"" } }
+  ];
+
+  repeated Location location_details = 4 [
+    (google.api.field_behavior) = OPTIONAL,
+    (gnostic.openapi.v3.property) = { example: { yaml: "[{\"file\": \"file1.txt\", \"line\": 10, \"column\": 5}]" } }
+  ];
+}
+
+message Location{
+  string file = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (gnostic.openapi.v3.property) = { example: { yaml: "\"file1.txt\"" } }
+  ];
+  int32 line = 2 [
+    (google.api.field_behavior) = OPTIONAL,
+    (gnostic.openapi.v3.property) = { example: { yaml: "\"10\"" } }
+  ];
+  int32 column = 3 [
+    (google.api.field_behavior) = OPTIONAL,
+    (gnostic.openapi.v3.property) = { example: { yaml: "\"5\"" } }
   ];
 }
