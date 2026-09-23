@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package entur.kittum.v1;
+
+import "entur/validation/v1/source.proto";
+import "gnostic/openapi/v3/annotations.proto";
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+
+option go_package = "github.com/entur/validation-core/gen/entur/kittum/v1;kittumv1";
+option java_multiple_files = true;
+option java_package = "no.entur.kittum.proto.v1";
+
+// The gRPC service to view and administrate sources.
+service SourceService {
+  option (google.api.default_host) = "kittum.entur.io";
+
+  // List all existing sources.
+  rpc ListSources(ListSourcesRequest) returns (ListSourcesResponse) {
+    option (google.api.http) = {get: "/v1/sources"};
+    option (gnostic.openapi.v3.operation) = {summary: "List all existing sources."};
+  }
+
+  // Get one source by its name.
+  rpc GetSource(GetSourceRequest) returns (entur.validation.v1.Source) {
+    option (google.api.http) = {get: "/v1/sources/{name}"};
+    option (gnostic.openapi.v3.operation) = {summary: "Get one source by its name."};
+  }
+}
+
+// Request for ListSources.
+message ListSourcesRequest {}
+
+// Response for ListSources.
+message ListSourcesResponse {
+  // All existing sources.
+  repeated entur.validation.v1.Source sources = 1;
+}
+
+// Request for GetSource.
+message GetSourceRequest {
+  // The name of the source to lookup.
+  string name = 1 [(google.api.field_behavior) = REQUIRED];
+}

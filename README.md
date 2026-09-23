@@ -44,13 +44,12 @@ so a consumer that needs the raw schema  can get it from the same published arti
 `.proto` files under `<module>/src/main/proto` are the source of truth. After editing one:
 
 ```shell
-buf lint
 buf breaking --against 'https://github.com/entur/validation-core.git#branch=main'
 ./gradlew build
 ```
 
-`./gradlew build` runs `buf format -w` on the whole workspace to format `.proto` files before
-generating anything.
+`./gradlew build` runs `buf format -w` on the whole workspace to format `.proto` files, then `buf
+lint`, before generating anything.
 
 ## OpenAPI 3
 
@@ -67,9 +66,21 @@ The specs live in [`specs/`](specs) at the repository root, one file per API:
 | Shipped in the jar at | `openapi/<api>.yaml`, alongside the `.proto` sources |
 
 On a PR that changes a spec, [`lint-api.yml`](.github/workflows/lint-api.yml) runs it through
-Entur's API guidelines via `entur/gha-api`. Findings are reported as annotations without failing the
-build for now; a finding there is a problem in the `.proto` file, since that is what the spec is
+Entur's API guidelines via `entur/gha-api`. Warnings are reported as annotations only; errors fail
+the build. A finding there is a problem in the `.proto` file, since that is what the spec is
 generated from.
+
+### Running the API lint locally
+
+`entur/gha-api` lints with Spectral against the ruleset pinned in [`lint.yml`](https://github.com/entur/gha-api/blob/main/.github/workflows/lint.yml)
+(currently `entur/api-guidelines@v3.4.0`). To reproduce a CI failure locally:
+
+```shell
+npx @stoplight/spectral-cli lint specs/kittum.yaml \
+  --ruleset https://raw.githubusercontent.com/entur/api-guidelines/refs/tags/v3.4.0/.spectral.yml
+```
+
+(Regenerate `specs/kittum.yaml` first (`./gradlew build`) if you've just changed a `.proto` file.)
 
 These specs are generated, never hand-maintained, and are committed for one reason: so that a schema
 change shows up in review as a diff of the HTTP contract it produces, next to the `.proto` change

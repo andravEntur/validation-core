@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package entur.kittum.v1;
+
+import "entur/validation/v1/area.proto";
+import "gnostic/openapi/v3/annotations.proto";
+import "google/api/annotations.proto";
+import "google/api/client.proto";
+import "google/api/field_behavior.proto";
+
+option go_package = "github.com/entur/validation-core/gen/entur/kittum/v1;kittumv1";
+option java_multiple_files = true;
+option java_package = "no.entur.kittum.proto.v1";
+
+// The gRPC service to view and administrate areas.
+service AreaService {
+  option (google.api.default_host) = "kittum.entur.io";
+
+  // List all existing areas.
+  rpc ListAreas(ListAreasRequest) returns (ListAreasResponse) {
+    option (google.api.http) = {get: "/v1/areas"};
+    option (gnostic.openapi.v3.operation) = {summary: "List all existing areas."};
+  }
+
+  // Get one area by its id.
+  rpc GetArea(GetAreaRequest) returns (entur.validation.v1.Area) {
+    option (google.api.http) = {get: "/v1/areas/{id}"};
+    option (gnostic.openapi.v3.operation) = {summary: "Get one area by its id."};
+  }
+}
+
+// Request for ListAreas.
+message ListAreasRequest {}
+
+// Response for ListAreas.
+message ListAreasResponse {
+  // All existing areas.
+  repeated entur.validation.v1.Area areas = 1;
+}
+
+// Request for GetArea.
+message GetAreaRequest {
+  // The database id of the area to lookup.
+  int32 id = 1 [(google.api.field_behavior) = REQUIRED];
+}

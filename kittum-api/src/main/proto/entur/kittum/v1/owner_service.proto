@@ -11,16 +11,6 @@ import "google/api/field_behavior.proto";
 option go_package = "github.com/entur/validation-core/gen/entur/kittum/v1;kittumv1";
 option java_multiple_files = true;
 option java_package = "no.entur.kittum.proto.v1";
-option (gnostic.openapi.v3.document) = {
-  info: {
-    specification_extension: [
-      {
-        name: "x-entur-metadata"
-        value: {yaml: "id: kittum\naudience: internal\nowner: team-validering"}
-      }
-    ]
-  }
-};
 
 // The gRPC service to view and administrate owners.
 service OwnerService {
@@ -50,6 +40,6 @@ message ListOwnersResponse {
 
 // Request for GetOwner.
 message GetOwnerRequest {
-  // The id of the owner to lookup.
-  int64 id = 1 [(google.api.field_behavior) = REQUIRED];
+  // The database id of the owner to lookup.
+  int32 id = 1 [(google.api.field_behavior) = REQUIRED];
 }

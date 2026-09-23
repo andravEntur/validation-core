@@ -10,23 +10,30 @@ option go_package = "github.com/entur/validation-core/gen/entur/validation/v1;va
 option java_multiple_files = true;
 option java_package = "no.entur.validation.proto.v1";
 
-// An owner of deliveries and areas, for example an Entur team.
-message Owner {
-  // The database id of the owner.
+// A specific area that is interested in validating certain deliveries. Owned by exactly one Owner.
+message Area {
+  // The database id of the area.
   int32 id = 1 [
     (google.api.field_behavior) = IDENTIFIER,
     (gnostic.openapi.v3.property) = {
       example: {yaml: "1"}
     }
   ];
-  // The name of the owner.
+  // The name of the area.
   string name = 2 [
     (google.api.field_behavior) = REQUIRED,
     (gnostic.openapi.v3.property) = {
-      example: {yaml: "\"team-validering\""}
+      example: {yaml: "\"Personalisering\""}
     }
   ];
-  // The timestamp of the owner.
+  // The database id of the owner of the area.
+  int32 owner = 3 [
+    (google.api.field_behavior) = REQUIRED,
+    (gnostic.openapi.v3.property) = {
+      example: {yaml: "2"}
+    }
+  ];
+  // The timestamp of the area.
   google.protobuf.Timestamp updated_at = 100 [(gnostic.openapi.v3.property) = {
     example: {yaml: "\"2026-01-01T00:00:00Z\""}
   }];

@@ -13,6 +13,42 @@ info:
 servers:
     - url: https://kittum.entur.io
 paths:
+    /v1/areas:
+        get:
+            tags:
+                - AreaService
+            summary: List all existing areas.
+            description: List all existing areas.
+            operationId: AreaService_ListAreas
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ListAreasResponse'
+    /v1/areas/{id}:
+        get:
+            tags:
+                - AreaService
+            summary: Get one area by its id.
+            description: Get one area by its id.
+            operationId: AreaService_GetArea
+            parameters:
+                - name: id
+                  in: path
+                  description: The database id of the area to lookup.
+                  required: true
+                  schema:
+                    type: integer
+                    format: int32
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Area'
     /v1/owners:
         get:
             tags:
@@ -37,7 +73,43 @@ paths:
             parameters:
                 - name: id
                   in: path
-                  description: The id of the owner to lookup.
+                  description: The database id of the owner to lookup.
+                  required: true
+                  schema:
+                    type: integer
+                    format: int32
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Owner'
+    /v1/sources:
+        get:
+            tags:
+                - SourceService
+            summary: List all existing sources.
+            description: List all existing sources.
+            operationId: SourceService_ListSources
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ListSourcesResponse'
+    /v1/sources/{name}:
+        get:
+            tags:
+                - SourceService
+            summary: Get one source by its name.
+            description: Get one source by its name.
+            operationId: SourceService_GetSource
+            parameters:
+                - name: name
+                  in: path
+                  description: The name of the source to lookup.
                   required: true
                   schema:
                     type: string
@@ -47,9 +119,44 @@ paths:
                     content:
                         application/json:
                             schema:
-                                $ref: '#/components/schemas/Owner'
+                                $ref: '#/components/schemas/Source'
 components:
     schemas:
+        Area:
+            required:
+                - name
+                - owner
+            type: object
+            properties:
+                id:
+                    example: 1
+                    type: integer
+                    description: The database id of the area.
+                    format: int32
+                name:
+                    example: "Personalisering"
+                    type: string
+                    description: The name of the area.
+                owner:
+                    example: 2
+                    type: integer
+                    description: The database id of the owner of the area.
+                    format: int32
+                updatedAt:
+                    example: "2026-01-01T00:00:00Z"
+                    type: string
+                    description: The timestamp of the area.
+                    format: date-time
+            description: A specific area that is interested in validating certain deliveries. Owned by exactly one Owner.
+        ListAreasResponse:
+            type: object
+            properties:
+                areas:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/Area'
+                    description: All existing areas.
+            description: Response for ListAreas.
         ListOwnersResponse:
             type: object
             properties:
@@ -59,6 +166,15 @@ components:
                         $ref: '#/components/schemas/Owner'
                     description: All existing owners.
             description: Response for ListOwners.
+        ListSourcesResponse:
+            type: object
+            properties:
+                sources:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/Source'
+                    description: All existing sources.
+            description: Response for ListSources.
         Owner:
             required:
                 - name
@@ -67,7 +183,7 @@ components:
                 id:
                     example: 1
                     type: integer
-                    description: The id of the owner.
+                    description: The database id of the owner.
                     format: int32
                 name:
                     example: "team-validering"
@@ -79,5 +195,36 @@ components:
                     description: The timestamp of the owner.
                     format: date-time
             description: An owner of deliveries and areas, for example an Entur team.
+        Source:
+            required:
+                - name
+                - owner
+            type: object
+            properties:
+                id:
+                    example: 42
+                    type: integer
+                    description: The database id of the source.
+                    format: int32
+                name:
+                    example: "rutedata"
+                    type: string
+                    description: The name of the source.
+                owner:
+                    example: 3
+                    type: integer
+                    description: The database id of the owner of the source.
+                    format: int32
+                updatedAt:
+                    example: "2026-01-01T00:00:00Z"
+                    type: string
+                    description: The timestamp of the source.
+                    format: date-time
+            description: A named intake point for a set of files, owned by exactly one Owner.
 tags:
+    - name: AreaService
+      description: The gRPC service to view and administrate areas.
     - name: OwnerService
+      description: The gRPC service to view and administrate owners.
+    - name: SourceService
+      description: The gRPC service to view and administrate sources.
