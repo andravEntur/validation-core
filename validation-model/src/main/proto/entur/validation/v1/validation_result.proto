@@ -62,8 +62,7 @@ message ValidationResult {
   ];
 
   // Whether this result is incomplete.
-  bool incomplete = 8 [
-    (google.api.field_behavior) = REQUIRED,
+  bool incomplete = 8 [    
     (gnostic.openapi.v3.property) = {
       description: "Whether this result is incomplete because the full set of findings was too large to fit in this Kafka message. When true, `messages` only contains a partial view and the complete result can be retrieved from `full_result_url`."
       example: {yaml: "false"}
@@ -91,7 +90,8 @@ message Message {
   ];
 
   // How severely this finding should be treated.
-  Severity severity = 3 [    
+  Severity severity = 3 [   
+    (google.api.field_behavior) = REQUIRED,
     (gnostic.openapi.v3.property) = {
       example: {yaml: "\"ERROR\""}
     }
