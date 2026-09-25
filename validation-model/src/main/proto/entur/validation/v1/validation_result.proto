@@ -62,12 +62,10 @@ message ValidationResult {
   ];
 
   // Whether this result is incomplete.
-  bool incomplete = 8 [
-    (gnostic.openapi.v3.property) = {
-      description: "Whether this result is incomplete because the full set of findings was too large to fit in this Kafka message. When true, `messages` only contains a partial view and the complete result can be retrieved from `full_result_url`."
-      example: {yaml: "false"}
-    }
-  ];
+  bool incomplete = 8 [(gnostic.openapi.v3.property) = {
+    description: "Whether this result is incomplete because the full set of findings was too large to fit in this Kafka message. When true, `messages` only contains a partial view and the complete result can be retrieved from `full_result_url`."
+    example: {yaml: "false"}
+  }];
 
   // Where the complete, untruncated result can be retrieved, e.g. a GCS object URL.
   // Only set when `incomplete` is true.
