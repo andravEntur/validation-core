@@ -1,5 +1,6 @@
 package no.entur.exposed.paging
 
+import com.google.protobuf.ByteString
 import io.r2dbc.spi.ConnectionFactories
 import io.r2dbc.spi.ConnectionFactoryOptions
 import kotlinx.coroutines.flow.toList
@@ -10,6 +11,8 @@ import no.entur.exposed.testfixtures.v1.Widget
 import no.entur.exposed.testfixtures.v1.WidgetStatus
 import no.entur.exposed.testfixtures.v1.lineItem
 import no.entur.exposed.testfixtures.v1.widget
+import no.entur.exposed.testfixtures.v1.widgetStats
+import no.entur.proto.time.toProtoTimestamp
 import org.jetbrains.exposed.v1.core.Op
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SortOrder
@@ -28,6 +31,7 @@ import org.junit.jupiter.api.Test
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 import org.testcontainers.postgresql.PostgreSQLContainer
+import java.time.OffsetDateTime
 
 /**
  * [PagingSupport.keysetCondition] against a real Postgres: [PagingSupportTest] covers everything
@@ -52,6 +56,41 @@ internal class PagingSupportPostgresTest {
             "charlie" to WidgetStatus.WIDGET_STATUS_INACTIVE,
             "echo" to WidgetStatus.WIDGET_STATUS_UNSPECIFIED,
         )
+
+    /** A fixed base instant [seed] builds every widget's `updated_at`/`stats.last_updated_at` from. */
+    private val baseTimestamp = OffsetDateTime.parse("2026-01-01T00:00:00Z")
+
+    /** [seed]'s own `active` value per [seeded] row, by index - two of each: `true`, `false`, absent. */
+    private val activeValues = listOf(true, false, null, null, true, false)
+
+    /**
+     * A second [SortableProperties] over [WidgetTable], differing from [WIDGET_SORTABLE_PROPERTIES]
+     * only in `active`'s own [NullsOrder] (`FIRST` here, `LAST` there) - [NullsOrder] is a property
+     * of how *this* resource declares the field sortable at all, fixed once, not something a caller
+     * picks per request (see [SortableNullableProperty.create]), so covering both needs two distinct
+     * [SortableProperties] instances, not two calls against one.
+     */
+    private val widgetNullsFirstProperties: SortableProperties<Widget> =
+        SortableProperties
+            .builder<Widget>(Widget.getDescriptor())
+            .id("id", WidgetTable.id)
+            .fieldNullsFirst("active", WidgetTable.active)
+            .build()
+
+    /**
+     * No `.id(...)` call at all - stands in for a resource whose id genuinely can't be a
+     * [SortableProperty] (e.g. `RuleResult`, which has no id field of its own in its proto at all).
+     * `status`/`name` cover the same multi-field keyset shape [WIDGET_SORTABLE_PROPERTIES] does -
+     * only without an id property of its own to auto-append as the tie-break - covering
+     * [PagingSupport.keysetCondition]'s/[PagingSupport.nextCursor]'s/[PagingSupport.decodeCursor]'s
+     * own hand-supplied-id-tie-break overloads against a real DB.
+     */
+    private val widgetNoIdProperties: SortableProperties<Widget> =
+        SortableProperties
+            .builder<Widget>(Widget.getDescriptor())
+            .field("status", WidgetTable.status)
+            .field("name", WidgetTable.name)
+            .build()
 
     /**
      * Composite-id rows sharing an `orderId` with different `lineNumber`s - a real tie that only
@@ -117,6 +156,143 @@ internal class PagingSupportPostgresTest {
             assertEquals(forward, backward.reversed())
         }
 
+    /**
+     * [seed]'s `statsLastUpdatedAt` deliberately ties every pair of rows - the real-world shape
+     * zagar hand-rolled this exact predicate for, against a *nested* `Timestamp` field
+     * (`ValidationJob.statistics.last_progress_received_at`) rather than [WidgetTable]'s top-level
+     * `name`/`status`.
+     */
+    @Test
+    fun `keyset-scrolling a nested Timestamp field with ties visits every row exactly once, in id order within a tie`() =
+        runTest {
+            seed()
+            val order = PagingSupport.parseOrderBy("stats.lastUpdatedAt desc", WIDGET_SORTABLE_PROPERTIES)
+
+            val visited = mutableListOf<Long>()
+            var cursor: String? = null
+            do {
+                val after = PagingSupport.decodeCursor(WIDGET_SORTABLE_PROPERTIES, cursor, order, OBJECT_MAPPER)
+                val page = findAll(order, pageSize = 2, after = after)
+                visited += page.content.map { it.id }
+                cursor = PagingSupport.nextCursor(WIDGET_SORTABLE_PROPERTIES, page, OBJECT_MAPPER)
+            } while (cursor != null)
+
+            val expected = findAll(order, pageSize = seeded.size, after = null).content.map { it.id }
+            assertEquals(expected, visited)
+            assertEquals(seeded.size, visited.toSet().size)
+        }
+
+    /**
+     * Proves a `bytes` field is genuinely orderable at the SQL level, not just accepted by
+     * [SortableProperty]'s own type-checking - [seed]'s `rawId` deliberately ties one pair of rows
+     * (see its own KDoc), same shape as the nested-Timestamp test above.
+     */
+    @Test
+    fun `keyset-scrolling a bytes field with a tie visits every row exactly once, in id order within the tie`() =
+        runTest {
+            seed()
+            val order = PagingSupport.parseOrderBy("rawId", WIDGET_SORTABLE_PROPERTIES)
+
+            val visited = mutableListOf<Long>()
+            var cursor: String? = null
+            do {
+                val after = PagingSupport.decodeCursor(WIDGET_SORTABLE_PROPERTIES, cursor, order, OBJECT_MAPPER)
+                val page = findAll(order, pageSize = 2, after = after)
+                visited += page.content.map { it.id }
+                cursor = PagingSupport.nextCursor(WIDGET_SORTABLE_PROPERTIES, page, OBJECT_MAPPER)
+            } while (cursor != null)
+
+            val expected = findAll(order, pageSize = seeded.size, after = null).content.map { it.id }
+            assertEquals(expected, visited)
+            assertEquals(seeded.size, visited.toSet().size)
+        }
+
+    /**
+     * [WidgetTable.id] is auto-incrementing and never reset between tests in this suite (only the
+     * rows are deleted - see [clearTables]), so no test can hardcode an absolute expected id. This
+     * reads every seeded row back out in insertion order (ascending id, the default with no
+     * `order_by` at all - [WIDGET_SORTABLE_PROPERTIES]'s only id) so a test can instead key its own
+     * expectations off [activeValues]'s own indices, e.g. `insertionOrder[2]`/`[3]` for its absent rows.
+     */
+    private suspend fun insertionOrder(): List<Long> =
+        findAll(PagingSupport.parseOrderBy(null, WIDGET_SORTABLE_PROPERTIES), pageSize = seeded.size, after = null).content.map { it.id }
+
+    /**
+     * `active` sorts `NullsOrder.LAST` in [WIDGET_SORTABLE_PROPERTIES] - absent values ([activeValues]'s
+     * own `null` entries) come after every present one *regardless* of direction (`false` sorts
+     * before `true` either way, but which present group comes first still reverses between
+     * ascending and descending, same as any other field would).
+     */
+    @Test
+    fun `keyset-scrolling a nullable field with NullsOrder LAST places absent values after present ones, in either direction`() =
+        runTest {
+            seed()
+            val ids = insertionOrder()
+            val falseIds = listOf(ids[1], ids[5])
+            val trueIds = listOf(ids[0], ids[4])
+            val absentIds = listOf(ids[2], ids[3])
+            val ascending = PagingSupport.parseOrderBy("active", WIDGET_SORTABLE_PROPERTIES)
+            val descending = PagingSupport.parseOrderBy("active desc", WIDGET_SORTABLE_PROPERTIES)
+
+            val ascendingVisited = mutableListOf<Long>()
+            var ascendingCursor: String? = null
+            do {
+                val after = PagingSupport.decodeCursor(WIDGET_SORTABLE_PROPERTIES, ascendingCursor, ascending, OBJECT_MAPPER)
+                // pageSize 1, not the seeded absent group's own size (2): a page boundary splitting
+                // a tied group is what actually forces equalCondition(null) - a same-size page
+                // would always fetch both absent rows together, never needing it to resume from one.
+                val page = findAll(ascending, pageSize = 1, after = after)
+                ascendingVisited += page.content.map { it.id }
+                ascendingCursor = PagingSupport.nextCursor(WIDGET_SORTABLE_PROPERTIES, page, OBJECT_MAPPER)
+            } while (ascendingCursor != null)
+
+            val descendingVisited = mutableListOf<Long>()
+            var descendingCursor: String? = null
+            do {
+                val after = PagingSupport.decodeCursor(WIDGET_SORTABLE_PROPERTIES, descendingCursor, descending, OBJECT_MAPPER)
+                val page = findAll(descending, pageSize = 1, after = after)
+                descendingVisited += page.content.map { it.id }
+                descendingCursor = PagingSupport.nextCursor(WIDGET_SORTABLE_PROPERTIES, page, OBJECT_MAPPER)
+            } while (descendingCursor != null)
+
+            assertEquals(falseIds + trueIds + absentIds, ascendingVisited)
+            assertEquals(trueIds + falseIds + absentIds, descendingVisited)
+        }
+
+    /** The [widgetNullsFirstProperties] counterpart to the `NullsOrder.LAST` test above - same seed, absent values first instead. */
+    @Test
+    fun `keyset-scrolling a nullable field with NullsOrder FIRST places absent values before present ones, in either direction`() =
+        runTest {
+            seed()
+            val ids = insertionOrder()
+            val falseIds = listOf(ids[1], ids[5])
+            val trueIds = listOf(ids[0], ids[4])
+            val absentIds = listOf(ids[2], ids[3])
+            val ascending = PagingSupport.parseOrderBy("active", widgetNullsFirstProperties)
+            val descending = PagingSupport.parseOrderBy("active desc", widgetNullsFirstProperties)
+
+            val ascendingVisited = mutableListOf<Long>()
+            var ascendingCursor: String? = null
+            do {
+                val after = PagingSupport.decodeCursor(widgetNullsFirstProperties, ascendingCursor, ascending, OBJECT_MAPPER)
+                val page = findAll(ascending, pageSize = 1, after = after, sortableProperties = widgetNullsFirstProperties)
+                ascendingVisited += page.content.map { it.id }
+                ascendingCursor = PagingSupport.nextCursor(widgetNullsFirstProperties, page, OBJECT_MAPPER)
+            } while (ascendingCursor != null)
+
+            val descendingVisited = mutableListOf<Long>()
+            var descendingCursor: String? = null
+            do {
+                val after = PagingSupport.decodeCursor(widgetNullsFirstProperties, descendingCursor, descending, OBJECT_MAPPER)
+                val page = findAll(descending, pageSize = 1, after = after, sortableProperties = widgetNullsFirstProperties)
+                descendingVisited += page.content.map { it.id }
+                descendingCursor = PagingSupport.nextCursor(widgetNullsFirstProperties, page, OBJECT_MAPPER)
+            } while (descendingCursor != null)
+
+            assertEquals(absentIds + falseIds + trueIds, ascendingVisited)
+            assertEquals(absentIds + trueIds + falseIds, descendingVisited)
+        }
+
     @Test
     fun `keyset-scrolling a composite-id table visits every row exactly once, in id order`() =
         runTest {
@@ -135,17 +311,72 @@ internal class PagingSupportPostgresTest {
             assertEquals(listOf(100L to 1, 100L to 2, 100L to 3, 200L to 1), visited)
         }
 
+    @Test
+    fun `keyset-scrolling two fields with a hand-supplied id tie-break visits every row exactly once, in id order within a tie`() =
+        runTest {
+            seed()
+            val sort = PagingSupport.parseOrderBy("status desc, name", widgetNoIdProperties)
+
+            val visited = mutableListOf<Long>()
+            var cursor: String? = null
+            do {
+                val after = PagingSupport.decodeCursor(widgetNoIdProperties, cursor, sort, parseId = { it.toLong() }, OBJECT_MAPPER)
+                val page = findAllNoId(sort, pageSize = 2, after = after)
+                visited += page.content.map { it.id }
+                cursor =
+                    page.content.lastOrNull()?.let {
+                        PagingSupport.nextCursor(widgetNoIdProperties, page, it.id.toString(), OBJECT_MAPPER)
+                    }
+            } while (cursor != null)
+
+            // The same order_by against the full, id-including WIDGET_SORTABLE_PROPERTIES - its own
+            // id tie-break is the very same column/direction findAllNoId's hand-supplied one is, so
+            // this is the oracle for what the no-id, hand-supplied-tie-break walk above should visit.
+            val expectedOrder = PagingSupport.parseOrderBy("status desc, name", WIDGET_SORTABLE_PROPERTIES)
+            val expected = findAll(expectedOrder, pageSize = seeded.size, after = null).content.map { it.id }
+            assertEquals(expected, visited)
+            assertEquals(seeded.size, visited.toSet().size)
+        }
+
+    /**
+     * Same shape as [findAll], but via [PagingSupport.keysetCondition]'s/[PagingSupport.nextCursor]'s
+     * hand-supplied-id-tie-break overloads against [widgetNoIdProperties] (two sortable fields, no
+     * id) instead of the ordinary ones against the full, id-including [WIDGET_SORTABLE_PROPERTIES] -
+     * the caller (not a [SortableProperties]) owns the id tie-break here.
+     */
+    private suspend fun findAllNoId(
+        sort: List<SortField>,
+        pageSize: Int,
+        after: Pair<Map<String, Any?>, Long>?,
+    ): Page<Widget> =
+        suspendTransaction(db = database, readOnly = true) {
+            val condition: Op<Boolean> =
+                after?.let { (primary, idAfter) ->
+                    PagingSupport.keysetCondition(widgetNoIdProperties, sort, primary, WidgetTable.id, idAfter)
+                } ?: Op.TRUE
+            var query = WidgetTable.selectAll().where { condition }
+            sort.forEach { field ->
+                val property = widgetNoIdProperties.byName(field.property)
+                query = query.orderBy(property.column, property.sortOrder(field.ascending))
+            }
+            query = query.orderBy(WidgetTable.id, SortOrder.ASC)
+            val rows = query.limit(pageSize + 1).toList()
+            val hasNext = rows.size > pageSize
+            Page(rows.take(pageSize).map { it.toWidget() }, hasNext, sort)
+        }
+
     private suspend fun findAll(
         sort: List<SortField>,
         pageSize: Int,
-        after: Map<String, Any>?,
+        after: Map<String, Any?>?,
+        sortableProperties: SortableProperties<Widget> = WIDGET_SORTABLE_PROPERTIES,
     ): Page<Widget> =
         suspendTransaction(db = database, readOnly = true) {
-            val condition: Op<Boolean> = after?.let { PagingSupport.keysetCondition(WIDGET_SORTABLE_PROPERTIES, sort, it) } ?: Op.TRUE
+            val condition: Op<Boolean> = after?.let { PagingSupport.keysetCondition(sortableProperties, sort, it) } ?: Op.TRUE
             var query = WidgetTable.selectAll().where { condition }
             sort.forEach { field ->
-                val column = WIDGET_SORTABLE_PROPERTIES.byName(field.property).column
-                query = query.orderBy(column, if (field.ascending) SortOrder.ASC else SortOrder.DESC)
+                val property = sortableProperties.byName(field.property)
+                query = query.orderBy(property.column, property.sortOrder(field.ascending))
             }
             val rows = query.limit(pageSize + 1).toList()
             val hasNext = rows.size > pageSize
@@ -157,14 +388,29 @@ internal class PagingSupportPostgresTest {
             id = this@toWidget[WidgetTable.id].value
             name = this@toWidget[WidgetTable.name]
             status = WidgetStatus.valueOf(this@toWidget[WidgetTable.status])
+            updatedAt = this@toWidget[WidgetTable.updatedAt].toProtoTimestamp()
+            stats = widgetStats { lastUpdatedAt = this@toWidget[WidgetTable.statsLastUpdatedAt].toProtoTimestamp() }
+            rawId = ByteString.copyFrom(this@toWidget[WidgetTable.rawId])
+            this@toWidget[WidgetTable.active]?.let { active = it }
         }
 
+    /**
+     * `updatedAt` gets a distinct value per row; `statsLastUpdatedAt` gets one shared by every
+     * *pair* of rows - deliberate ties for the nested-Timestamp keyset test below. `rawId` gets a
+     * distinct single byte per row, ties on every *odd* row instead (`0, 1, 1, 3, 4, 5` for 6 rows)
+     * - deliberate ties for the bytes keyset test below. `active` gets [activeValues] by index -
+     * two rows tied on an absent value, for the nullable-field keyset tests below.
+     */
     private suspend fun seed() {
         suspendTransaction(db = database) {
-            seeded.forEach { (name, status) ->
+            seeded.forEachIndexed { index, (name, status) ->
                 WidgetTable.insert {
                     it[WidgetTable.name] = name
                     it[WidgetTable.status] = status.name
+                    it[updatedAt] = baseTimestamp.plusSeconds(index.toLong())
+                    it[statsLastUpdatedAt] = baseTimestamp.plusSeconds((index / 2).toLong())
+                    it[rawId] = byteArrayOf((if (index == 2) 1 else index).toByte())
+                    it[active] = activeValues[index]
                 }
             }
         }
@@ -173,15 +419,15 @@ internal class PagingSupportPostgresTest {
     private suspend fun findAllLineItems(
         sort: List<SortField>,
         pageSize: Int,
-        after: Map<String, Any>?,
+        after: Map<String, Any?>?,
     ): Page<LineItem> =
         suspendTransaction(db = database, readOnly = true) {
             val condition: Op<Boolean> =
                 after?.let { PagingSupport.keysetCondition(LINE_ITEM_SORTABLE_PROPERTIES, sort, it) } ?: Op.TRUE
             var query = LineItemTable.selectAll().where { condition }
             sort.forEach { field ->
-                val column = LINE_ITEM_SORTABLE_PROPERTIES.byName(field.property).column
-                query = query.orderBy(column, if (field.ascending) SortOrder.ASC else SortOrder.DESC)
+                val property = LINE_ITEM_SORTABLE_PROPERTIES.byName(field.property)
+                query = query.orderBy(property.column, property.sortOrder(field.ascending))
             }
             val rows = query.limit(pageSize + 1).toList()
             val hasNext = rows.size > pageSize
