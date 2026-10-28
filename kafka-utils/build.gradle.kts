@@ -21,6 +21,14 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
+// The Boot BOM above is `implementation`, so without this the published api variant lists
+// spring-kafka/slf4j-api versionless, and a Gradle consumer without that BOM can't resolve them.
+publishing {
+    publications.named<MavenPublication>("maven") {
+        versionMapping { allVariants { fromResolutionResult() } }
+    }
+}
+
 ktlint {
     version.set(libs.versions.ktlint)
 }
