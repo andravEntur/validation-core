@@ -8,7 +8,7 @@ hand-written support library built on top of the generated types.
 
 ## Modules
 
-Seven Gradle modules, each published as its own Maven artifact, sharing one version:
+Eight Gradle modules, each published as its own Maven artifact, sharing one version:
 
 | Module | Proto package | Artifact | Contents |
 |--------|---------------|----------|----------|
@@ -19,6 +19,7 @@ Seven Gradle modules, each published as its own Maven artifact, sharing one vers
 | [`proto-utils`](proto-utils) | — (hand-written, not proto-generated) | `no.entur.validation:proto-utils` | Domain-agnostic proto/HTTP plumbing (update masks, protobuf-JSON codecs, oneof serialization, `ProblemDetail` error mapping) for WebFlux services built on this schema. See "Non-schema modules" below. |
 | [`exposed-utils`](exposed-utils) | — (hand-written, not proto-generated) | `no.entur.validation:exposed-utils` | JetBrains Exposed-specific persistence support (ETag concurrency, cursor paging) built on `proto-utils`. See "Non-schema modules" below. |
 | [`api-utils`](api-utils) | — (hand-written, not proto-generated) | `no.entur.validation:api-utils` | Spring WebFlux/Security support (OpenAPI spec serving, content negotiation, audience-validation and method-security configuration) for services built on this schema. See "Non-schema modules" below. |
+| [`kafka-utils`](kafka-utils) | — (hand-written, not proto-generated) | `no.entur.validation:kafka-utils` | Kafka tracing: the `X-Correlation-Id`/`ET-Client-Name` headers every validation service stamps on what it produces, and the `correlationId`/`clientName` MDC entries it logs with while processing a consumed record. See "Non-schema modules" below. |
 
 More packages (and modules) are expected as new APIs are added on top of the shared model.
 
@@ -142,6 +143,14 @@ module's packages are reachable by that app's own component scan - each one's ow
 `AutoConfigurationImportsTest` checks that file stays in sync with what it actually ships. All three
 modules are still published the same way as the other modules (root `subprojects {}` applies
 `maven-publish` to all of them uniformly), so releasing any of them needs no special handling.
+
+`kafka-utils` has no proto and no Spring beans: services wire its two interceptors in by hand.
+`TracingProducerInterceptor` goes on each `KafkaTemplate` (`setProducerInterceptor`). It sets
+`ET-Client-Name` to the producing service and, when the record has no `X-Correlation-Id` of its own,
+fills one in from the MDC, or `"not set"`. `TracingRecordInterceptor` goes on each listener container
+factory (`setRecordInterceptor`) and puts the consumed record's correlation id and sender's client
+name in the MDC while the listener runs, so whatever the listener produces carries the same id.
+Like the other non-schema modules it is published with the rest.
 
 ## Versioning and publishing
 
