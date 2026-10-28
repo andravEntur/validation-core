@@ -35,6 +35,23 @@ class TracingProducerInterceptorTest {
     }
 
     @Test
+    fun `sends a correlation id set in another casing under the canonical header name`() {
+        val record = ProducerRecord("topic", "key", "value").apply { headers().add("x-correlation-id", "lowercase".toByteArray()) }
+
+        interceptor.onSend(record)
+
+        assertEquals(listOf("lowercase"), record.values(CORRELATION_ID_HEADER))
+        assertEquals(
+            "lowercase",
+            record
+                .headers()
+                .lastHeader(CORRELATION_ID_HEADER)
+                ?.value()
+                ?.decodeToString(),
+        )
+    }
+
+    @Test
     fun `takes the correlation id of the record being processed`() {
         MDC.put(CORRELATION_ID_MDC_KEY, "from-mdc")
         val record = ProducerRecord("topic", "key", "value")
