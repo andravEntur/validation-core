@@ -6,7 +6,7 @@ import org.slf4j.MDC
 /** Carries one validation run's id across every message and service it passes through. */
 const val CORRELATION_ID_HEADER = "X-Correlation-Id"
 
-/** The service that produced the message, e.g. `orch` or `haia`. */
+/** The service that produced the message. */
 const val CLIENT_NAME_HEADER = "ET-Client-Name"
 
 /** What a service that may not mint its own correlation id sends when it was given none. */
