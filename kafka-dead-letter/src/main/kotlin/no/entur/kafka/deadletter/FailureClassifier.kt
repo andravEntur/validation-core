@@ -29,8 +29,9 @@ class FailureClassifier(
             generateSequence(exception) { current -> current.cause?.takeIf { it !== current } }
                 .take(MAX_CAUSE_DEPTH)
                 .toList()
+        val decoding = chain.any { it is DeserializationException }
         return chain.firstNotNullOfOrNull { overrides(it) ?: sharedOverride(it) }
-            ?: chain.mapNotNull { causes(it) ?: sharedCause(it) }.lastOrNull()
+            ?: chain.mapNotNull { causes(it) ?: sharedCause(it, decoding) }.lastOrNull()
             ?: TRANSIENT
     }
 
@@ -53,7 +54,10 @@ class FailureClassifier(
                 else -> null
             }
 
-        private fun sharedCause(exception: Throwable): Boolean? =
+        private fun sharedCause(
+            exception: Throwable,
+            decoding: Boolean,
+        ): Boolean? =
             when (exception) {
                 // Also what a registry that could not be asked surfaces as, so a cause below usually decides.
                 is DeserializationException -> PERMANENT
@@ -61,9 +65,10 @@ class FailureClassifier(
                 // A wrapper the Confluent deserializers put around both bad bytes and registry I/O.
                 is SerializationException -> null
 
-                // Ahead of IOException, which both extend.
-                is EOFException -> PERMANENT
+                // Truncated bytes while decoding; elsewhere, such as a dropped download, a plain I/O failure.
+                is EOFException if decoding -> PERMANENT
 
+                // Ahead of IOException, which it extends, as does EOFException.
                 is InvalidProtocolBufferException -> PERMANENT
 
                 // The record's schema id is not in the registry: a real one answers 40403, the mock 40401.

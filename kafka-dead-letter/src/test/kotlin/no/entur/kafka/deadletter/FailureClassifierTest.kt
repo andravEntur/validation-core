@@ -27,6 +27,11 @@ class FailureClassifierTest {
     }
 
     @Test
+    fun `an EOFException outside decoding is a dropped stream, not a bad record`() {
+        assertFalse(shared.isPermanent(RuntimeException("download failed", EOFException())))
+    }
+
+    @Test
     fun `a schema id the registry does not have is permanent, from a real or a mock registry`() {
         assertTrue(shared.isPermanent(undecodable(RestClientException("Schema not found", 404, 40403))))
         assertTrue(shared.isPermanent(undecodable(RestClientException("Subject not found", 404, 40401))))
