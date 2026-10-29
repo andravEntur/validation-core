@@ -1,7 +1,9 @@
 package no.entur.kafka.deadletter
 
+import com.google.protobuf.StringValue
 import no.entur.kafka.CLIENT_NAME_HEADER
 import no.entur.kafka.CORRELATION_ID_HEADER
+import no.entur.validation.proto.v1.DeadLetter
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.common.header.internals.RecordHeaders
 import org.apache.kafka.common.record.TimestampType
@@ -76,10 +78,24 @@ class DeadLetterRecovererTest {
     }
 
     @Test
+    fun `wraps a decoded protobuf message as an Any rather than its bytes`() {
+        val message = StringValue.of("RUT")
+        val record =
+            ConsumerRecord<String, Any?>(TOPIC, 0, OFFSET, "RUT", message).apply {
+                headers().add(RAW_VALUE_HEADER, RAW_VALUE)
+            }
+
+        val deadLetter = recoverer.toDeadLetter(record, IllegalStateException())
+
+        assertEquals(DeadLetter.OriginalCase.ORIGINAL_MESSAGE, deadLetter.originalCase)
+        assertEquals(message, deadLetter.originalMessage.unpack(StringValue::class.java))
+    }
+
+    @Test
     fun `dead-letters a tombstone with its value unset`() {
         val deadLetter = recoverer.toDeadLetter(ConsumerRecord<String, Any?>(TOPIC, 0, OFFSET, null, null), IllegalStateException())
 
-        assertFalse(deadLetter.hasOriginalValue())
+        assertEquals(DeadLetter.OriginalCase.ORIGINAL_NOT_SET, deadLetter.originalCase)
         assertFalse(deadLetter.hasOriginalKey())
         assertEquals("", deadLetter.correlationId)
         assertEquals("", deadLetter.consumerGroup)
@@ -119,7 +135,7 @@ class DeadLetterRecovererTest {
 
         val deadLetter = recoverer.toDeadLetter(ConsumerRecord<String, Any?>(TOPIC, 0, OFFSET, "RUT", null), first)
 
-        assertFalse(deadLetter.hasOriginalValue())
+        assertEquals(DeadLetter.OriginalCase.ORIGINAL_NOT_SET, deadLetter.originalCase)
     }
 
     @Test

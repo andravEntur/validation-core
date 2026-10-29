@@ -163,7 +163,7 @@ keeps retry state per partition.
   (undecodable bytes, a schema id the registry lacks, Spring's former fatal list are permanent;
   registry, broker and I/O trouble transient); a service adds its own through `overrides` (verdicts
   that hold whatever they wrap) and `causes` (the innermost classified cause wins).
-- `DeadLetterRecoverer` publishes a `DeadLetter` - the original bytes, coordinates, headers, the
+- `DeadLetterRecoverer` publishes a `DeadLetter` - the original value (the decoded protobuf message as an `Any`, else the consumed bytes), coordinates, headers, the
   correlation id and the failure - through a `KafkaOperations<String, DeadLetter>`, which should
   carry a Confluent protobuf serializer and `kafka-utils`' `TracingProducerInterceptor`. It throws
   when the publish fails, so the offset stays uncommitted.

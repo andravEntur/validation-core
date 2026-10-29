@@ -1,6 +1,7 @@
 package no.entur.kafka.deadletter
 
 import com.google.protobuf.ByteString
+import com.google.protobuf.Message
 import com.google.protobuf.Timestamp
 import no.entur.kafka.CORRELATION_ID_HEADER
 import no.entur.kafka.correlationId
@@ -19,9 +20,11 @@ import java.time.Instant
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
+import com.google.protobuf.Any as ProtoAny
 
 /**
- * Publishes a record no attempt can process to [topic] as a [DeadLetter] carrying its exact bytes.
+ * Publishes a record no attempt can process to [topic] as a [DeadLetter] carrying its value: the
+ * protobuf message it decoded to, or else the bytes it was consumed as.
  * Throws if the publish fails or takes longer than [sendTimeout], which keeps the offset uncommitted.
  */
 class DeadLetterRecoverer(
@@ -60,7 +63,10 @@ class DeadLetterRecoverer(
         DeadLetter
             .newBuilder()
             .apply {
-                originalValue(record, exception)?.let { originalValue = ByteString.copyFrom(it) }
+                when (val value = record.value()) {
+                    is Message -> originalMessage = ProtoAny.pack(value)
+                    else -> originalValue(record, exception)?.let { originalValue = ByteString.copyFrom(it) }
+                }
                 originalTopic = record.topic()
                 originalPartition = record.partition()
                 originalOffset = record.offset()
