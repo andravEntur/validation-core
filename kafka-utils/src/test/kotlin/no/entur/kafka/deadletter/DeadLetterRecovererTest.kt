@@ -57,16 +57,16 @@ class DeadLetterRecovererTest {
                 ListenerExecutionFailedException("Listener failed", IllegalStateException("bad", IOException("io"))),
             )
 
-        assertContentEquals(RAW_VALUE, deadLetter.originalValue.toByteArray())
-        assertEquals(TOPIC, deadLetter.originalTopic)
-        assertEquals(0, deadLetter.originalPartition)
-        assertEquals(OFFSET, deadLetter.originalOffset)
-        assertEquals(1_700_000_000L, deadLetter.originalTimestamp.seconds)
-        assertEquals(123_000_000, deadLetter.originalTimestamp.nanos)
-        assertEquals("RUT", deadLetter.originalKey)
-        assertEquals("misharum", deadLetter.failingService)
+        assertContentEquals(RAW_VALUE, deadLetter.record.rawValue.toByteArray())
+        assertEquals(TOPIC, deadLetter.record.topic)
+        assertEquals(0, deadLetter.record.partition)
+        assertEquals(OFFSET, deadLetter.record.offset)
+        assertEquals(1_700_000_000L, deadLetter.record.timestamp.seconds)
+        assertEquals(123_000_000, deadLetter.record.timestamp.nanos)
+        assertEquals("RUT", deadLetter.record.key)
+        assertEquals("misharum", deadLetter.consumer.service)
         assertEquals("corr-1", deadLetter.correlationId)
-        assertEquals("misharum-dev", deadLetter.consumerGroup)
+        assertEquals("misharum-dev", deadLetter.consumer.group)
         assertTrue(deadLetter.deadLetteredAt.seconds >= before.epochSecond)
         with(deadLetter.failure) {
             assertEquals(IllegalStateException::class.java.name, exceptionClass)
@@ -87,18 +87,18 @@ class DeadLetterRecovererTest {
 
         val deadLetter = recoverer.toDeadLetter(record, IllegalStateException())
 
-        assertEquals(DeadLetter.OriginalCase.ORIGINAL_MESSAGE, deadLetter.originalCase)
-        assertEquals(message, deadLetter.originalMessage.unpack(StringValue::class.java))
+        assertEquals(DeadLetter.Record.ValueCase.MESSAGE, deadLetter.record.valueCase)
+        assertEquals(message, deadLetter.record.message.unpack(StringValue::class.java))
     }
 
     @Test
     fun `dead-letters a tombstone with its value unset`() {
         val deadLetter = recoverer.toDeadLetter(ConsumerRecord<String, Any?>(TOPIC, 0, OFFSET, null, null), IllegalStateException())
 
-        assertEquals(DeadLetter.OriginalCase.ORIGINAL_NOT_SET, deadLetter.originalCase)
-        assertFalse(deadLetter.hasOriginalKey())
+        assertEquals(DeadLetter.Record.ValueCase.VALUE_NOT_SET, deadLetter.record.valueCase)
+        assertFalse(deadLetter.record.hasKey())
         assertEquals("", deadLetter.correlationId)
-        assertEquals("", deadLetter.consumerGroup)
+        assertEquals("", deadLetter.consumer.group)
     }
 
     @Test
@@ -109,8 +109,8 @@ class DeadLetterRecovererTest {
                 IllegalStateException(),
             )
 
-        assertTrue(deadLetter.hasOriginalValue())
-        assertTrue(deadLetter.originalValue.isEmpty)
+        assertTrue(deadLetter.record.hasRawValue())
+        assertTrue(deadLetter.record.rawValue.isEmpty)
     }
 
     @Test
@@ -123,8 +123,8 @@ class DeadLetterRecovererTest {
 
         val deadLetter = recoverer.toDeadLetter(record, ListenerExecutionFailedException("Listener failed", failure))
 
-        assertContentEquals(RAW_VALUE, deadLetter.originalValue.toByteArray())
-        assertEquals(emptyList(), deadLetter.originalHeadersList)
+        assertContentEquals(RAW_VALUE, deadLetter.record.rawValue.toByteArray())
+        assertEquals(emptyList(), deadLetter.record.headersList)
     }
 
     @Test
@@ -135,7 +135,7 @@ class DeadLetterRecovererTest {
 
         val deadLetter = recoverer.toDeadLetter(ConsumerRecord<String, Any?>(TOPIC, 0, OFFSET, "RUT", null), first)
 
-        assertEquals(DeadLetter.OriginalCase.ORIGINAL_NOT_SET, deadLetter.originalCase)
+        assertEquals(DeadLetter.Record.ValueCase.VALUE_NOT_SET, deadLetter.record.valueCase)
     }
 
     @Test
@@ -146,7 +146,7 @@ class DeadLetterRecovererTest {
                 headers().add("empty", ByteArray(0))
             }
 
-        val headers = recoverer.toDeadLetter(record, IllegalStateException()).originalHeadersList
+        val headers = recoverer.toDeadLetter(record, IllegalStateException()).record.headersList
 
         assertEquals(listOf("null" to false, "empty" to true), headers.map { it.key to it.hasValue() })
     }
@@ -168,7 +168,7 @@ class DeadLetterRecovererTest {
                 headers().add("b", "3".toByteArray())
             }
 
-        val headers = recoverer.toDeadLetter(record, IllegalStateException()).originalHeadersList
+        val headers = recoverer.toDeadLetter(record, IllegalStateException()).record.headersList
 
         assertEquals(listOf("b" to "1", "a" to "2", "b" to "3"), headers.map { it.key to it.value.toStringUtf8() })
     }
@@ -199,7 +199,13 @@ class DeadLetterRecovererTest {
         assertEquals(DEAD_LETTER_TOPIC, published.topic())
         assertNull(published.partition())
         assertEquals("RUT", published.key())
-        assertContentEquals(RAW_VALUE, published.value().originalValue.toByteArray())
+        assertContentEquals(
+            RAW_VALUE,
+            published
+                .value()
+                .record.rawValue
+                .toByteArray(),
+        )
         assertEquals(listOf(CORRELATION_ID_HEADER), published.headers().map { it.key() })
         assertEquals(
             "corr-1",

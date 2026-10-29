@@ -63,28 +63,28 @@ class FailureClassifierTest {
 
     @Test
     fun `a service override beats every shared verdict, wherever it is in the chain`() {
-        val classifier = FailureClassifier(overrides = { if (it is DatasetGoneException) FailureClassifier.PERMANENT else null })
+        val classifier = FailureClassifier(overrides = { if (it is DatasetGoneException) Verdict.PERMANENT else Verdict.NONE })
 
         assertTrue(classifier.isPermanent(listenerFailure(DatasetGoneException(IOException("404")))))
         assertFalse(shared.isPermanent(listenerFailure(DatasetGoneException(IOException("404")))))
 
-        val lenient = FailureClassifier(overrides = { if (it is MessageConversionException) FailureClassifier.TRANSIENT else null })
+        val lenient = FailureClassifier(overrides = { if (it is MessageConversionException) Verdict.TRANSIENT else Verdict.NONE })
         assertFalse(lenient.isPermanent(listenerFailure(MessageConversionException("not yet"))))
 
-        val retryable = FailureClassifier(overrides = { if (it is DatasetGoneException) FailureClassifier.TRANSIENT else null })
+        val retryable = FailureClassifier(overrides = { if (it is DatasetGoneException) Verdict.TRANSIENT else Verdict.NONE })
         assertFalse(retryable.isPermanent(MessageConversionException("wrapped", DatasetGoneException(IOException("503")))))
     }
 
     @Test
     fun `a service cause is asked before the shared one for the same frame`() {
-        val classifier = FailureClassifier(causes = { if (it is ConnectException) FailureClassifier.PERMANENT else null })
+        val classifier = FailureClassifier(causes = { if (it is ConnectException) Verdict.PERMANENT else Verdict.NONE })
 
         assertTrue(classifier.isPermanent(listenerFailure(ConnectException("refused"))))
     }
 
     @Test
     fun `the innermost classified cause wins`() {
-        val classifier = FailureClassifier(causes = { if (it is DatasetGoneException) FailureClassifier.TRANSIENT else null })
+        val classifier = FailureClassifier(causes = { if (it is DatasetGoneException) Verdict.TRANSIENT else Verdict.NONE })
 
         assertTrue(classifier.isPermanent(listenerFailure(DatasetGoneException(InvalidProtocolBufferException("truncated")))))
         assertFalse(classifier.isPermanent(listenerFailure(DatasetGoneException(IllegalStateException()))))

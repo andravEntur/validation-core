@@ -9,38 +9,50 @@ option go_package = "github.com/entur/validation-core/gen/entur/validation/v1;va
 option java_multiple_files = true;
 option java_package = "no.entur.validation.proto.v1";
 
-// A record a service consumed but could never process, published to validation-dlt-{env}.
+// A record a service consumed but could never process.
 message DeadLetter {
-  // The consumed record's value. Neither is set for a tombstone.
-  oneof original {
-    // The bytes the record was consumed as, schema-id framing included, when it did not decode to a
-    // protobuf message: undecodable, or another format such as Avro.
-    bytes original_value = 1;
-    // The protobuf message the record decoded to.
-    google.protobuf.Any original_message = 13;
-  }
-  // The topic the record was consumed from.
-  string original_topic = 2;
-  // The partition the record was consumed from.
-  int32 original_partition = 3;
-  // The record's offset in its partition.
-  int64 original_offset = 4;
-  // The record's own timestamp, unset when it has none.
-  google.protobuf.Timestamp original_timestamp = 5;
-  // The record's key, unset when it has none.
-  optional string original_key = 6;
-  // The record's headers in their original order, duplicates kept, so it can be replayed exactly.
-  repeated Header original_headers = 7;
-  // The service that gave up on the record, the same name it sends as ET-Client-Name.
-  string failing_service = 8;
-  // The record's X-Correlation-Id, empty when it had none.
-  string correlation_id = 9;
-  // The consumer group the failing service consumed the record in.
-  string consumer_group = 10;
+  // The record the service gave up on.
+  Record record = 1;
+  // Who gave up on the record.
+  Consumer consumer = 2;
   // Why the service gave up on the record.
-  Failure failure = 11;
+  Failure failure = 3;
+  // The record's X-Correlation-Id, empty when it had none.
+  string correlation_id = 4;
   // When the record was dead-lettered.
-  google.protobuf.Timestamp dead_lettered_at = 12;
+  google.protobuf.Timestamp dead_lettered_at = 5;
+
+  // A consumed Kafka record.
+  message Record {
+    // The topic the record was consumed from.
+    string topic = 1;
+    // The partition the record was consumed from.
+    int32 partition = 2;
+    // The record's offset in its partition.
+    int64 offset = 3;
+    // The record's own timestamp, unset when it has none.
+    google.protobuf.Timestamp timestamp = 4;
+    // The record's key, unset when it has none.
+    optional string key = 5;
+    // The record's headers in their original order, duplicates kept, so it can be replayed exactly.
+    repeated Header headers = 6;
+    // The record's value. Neither is set for a tombstone.
+    oneof value {
+      // The bytes the record was consumed as, schema-id framing included, when it did not decode to a
+      // protobuf message: undecodable, or another format such as Avro.
+      bytes raw_value = 7;
+      // The protobuf message the record decoded to.
+      google.protobuf.Any message = 8;
+    }
+  }
+
+  // The consumer that gave up on a record.
+  message Consumer {
+    // The service, the same name it sends as ET-Client-Name.
+    string service = 1;
+    // The consumer group the service consumed the record in.
+    string group = 2;
+  }
 
   // A Kafka record header.
   message Header {

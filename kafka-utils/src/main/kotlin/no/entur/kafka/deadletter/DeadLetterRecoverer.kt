@@ -41,7 +41,7 @@ class DeadLetterRecoverer(
         // Null partition: Kafka picks one by key, since the source topics and the DLT need not
         // have the same partition count.
         val producerRecord =
-            ProducerRecord<String, DeadLetter>(topic, null, deadLetter.originalKeyOrNull(), deadLetter)
+            ProducerRecord<String, DeadLetter>(topic, null, deadLetter.keyOrNull(), deadLetter)
         record.headers().correlationId()?.let { producerRecord.headers().add(CORRELATION_ID_HEADER, it.toByteArray()) }
         try {
             template.send(producerRecord).get(sendTimeout.toMillis(), TimeUnit.MILLISECONDS)
@@ -63,27 +63,15 @@ class DeadLetterRecoverer(
         DeadLetter
             .newBuilder()
             .apply {
-                when (val value = record.value()) {
-                    is Message -> originalMessage = ProtoAny.pack(value)
-                    else -> originalValue(record, exception)?.let { originalValue = ByteString.copyFrom(it) }
-                }
-                originalTopic = record.topic()
-                originalPartition = record.partition()
-                originalOffset = record.offset()
-                if (record.timestamp() !=
-                    RecordBatch.NO_TIMESTAMP
-                ) {
-                    originalTimestamp = Instant.ofEpochMilli(record.timestamp()).toTimestamp()
-                }
-                record.key()?.let { originalKey = it.toString() }
-                record
-                    .headers()
-                    .filterNot { it.key() in INTERNAL_HEADERS }
-                    .forEach { addOriginalHeaders(header(it.key(), it.value())) }
-                failingService = this@DeadLetterRecoverer.failingService
-                correlationId = record.headers().correlationId().orEmpty()
-                consumerGroup = KafkaUtils.getConsumerGroupId().orEmpty()
+                this.record = recordOf(record, exception)
+                consumer =
+                    DeadLetter.Consumer
+                        .newBuilder()
+                        .setService(failingService)
+                        .setGroup(KafkaUtils.getConsumerGroupId().orEmpty())
+                        .build()
                 exception?.let { failure = failureOf(it) }
+                correlationId = record.headers().correlationId().orEmpty()
                 deadLetteredAt = Instant.now().toTimestamp()
             }.build()
 
@@ -96,7 +84,31 @@ class DeadLetterRecoverer(
         val INTERNAL_HEADERS =
             setOf(RAW_VALUE_HEADER, KafkaUtils.KEY_DESERIALIZER_EXCEPTION_HEADER, KafkaUtils.VALUE_DESERIALIZER_EXCEPTION_HEADER)
 
-        fun originalValue(
+        fun recordOf(
+            record: ConsumerRecord<*, *>,
+            exception: Throwable?,
+        ): DeadLetter.Record =
+            DeadLetter.Record
+                .newBuilder()
+                .apply {
+                    topic = record.topic()
+                    partition = record.partition()
+                    offset = record.offset()
+                    if (record.timestamp() != RecordBatch.NO_TIMESTAMP) {
+                        timestamp = Instant.ofEpochMilli(record.timestamp()).toTimestamp()
+                    }
+                    record.key()?.let { key = it.toString() }
+                    record
+                        .headers()
+                        .filterNot { it.key() in INTERNAL_HEADERS }
+                        .forEach { addHeaders(header(it.key(), it.value())) }
+                    when (val value = record.value()) {
+                        is Message -> message = ProtoAny.pack(value)
+                        else -> consumedBytes(record, exception)?.let { rawValue = ByteString.copyFrom(it) }
+                    }
+                }.build()
+
+        fun consumedBytes(
             record: ConsumerRecord<*, *>,
             exception: Throwable?,
         ): ByteArray? {
@@ -153,6 +165,6 @@ class DeadLetterRecoverer(
                 .setNanos(nano)
                 .build()
 
-        fun DeadLetter.originalKeyOrNull(): String? = if (hasOriginalKey()) originalKey else null
+        fun DeadLetter.keyOrNull(): String? = if (record.hasKey()) record.key else null
     }
 }

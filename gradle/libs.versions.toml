@@ -13,7 +13,7 @@ ktlint = "1.8.0"
 # Only api-utils needs this - AudienceValidationGuard's constructor takes its EnturAuthProperties
 # directly. Kept aligned with zagar/kittum's own catalogs, its two consumers.
 oidcAuthResourceServer = "3.0.5"
-# Only kafka-dead-letter needs this (compileOnly) - RestClientException. Kept aligned with the
+# Only kafka-utils needs this (compileOnly) - RestClientException. Kept aligned with the
 # Confluent serdes its consumers use.
 confluent = "8.2.1"
 

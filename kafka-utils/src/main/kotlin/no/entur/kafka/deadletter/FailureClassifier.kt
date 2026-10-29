@@ -11,19 +11,22 @@ import org.springframework.messaging.handler.invocation.MethodArgumentResolution
 import java.io.EOFException
 import java.io.IOException
 
+/** A [FailureClassifier] rule's verdict on one exception in a cause chain; [NONE] leaves it to the next rule. */
+enum class Verdict { PERMANENT, TRANSIENT, NONE }
+
 /**
  * Whether a listener failure is a property of the record, so it fails again however often it is
- * redelivered ([PERMANENT]), or of the moment ([TRANSIENT]). Anything unrecognised is transient: a
- * wrong guess that way stalls the partition, visible as consumer lag, instead of dropping a record.
+ * redelivered ([Verdict.PERMANENT]), or of the moment ([Verdict.TRANSIENT]). Anything unrecognised is
+ * transient: a wrong guess that way stalls the partition, visible as consumer lag, instead of dropping
+ * a record.
  *
- * Verdicts are [PERMANENT], [TRANSIENT] or null for none. [overrides] hold whatever the exception
- * wraps: the outermost service override wins, then the outermost shared one. Otherwise the innermost
- * cause with a verdict wins, asking [causes] before the shared rules, since the outer frames only say
- * where the failure surfaced.
+ * [overrides] hold whatever the exception wraps: the outermost service override wins, then the
+ * outermost shared one. Otherwise the innermost cause with a verdict wins, asking [causes] before the
+ * shared rules, since the outer frames only say where the failure surfaced.
  */
 class FailureClassifier(
-    private val overrides: (Throwable) -> Boolean? = { null },
-    private val causes: (Throwable) -> Boolean? = { null },
+    private val overrides: (Throwable) -> Verdict = { Verdict.NONE },
+    private val causes: (Throwable) -> Verdict = { Verdict.NONE },
 ) {
     fun isPermanent(exception: Throwable): Boolean {
         val chain =
@@ -31,58 +34,61 @@ class FailureClassifier(
                 .take(MAX_CAUSE_DEPTH)
                 .toList()
         val decoding = chain.any { it is DeserializationException }
-        return chain.firstNotNullOfOrNull(overrides)
-            ?: chain.firstNotNullOfOrNull(::sharedOverride)
-            ?: chain.mapNotNull { causes(it) ?: sharedCause(it, decoding) }.lastOrNull()
-            ?: TRANSIENT
+        val verdict =
+            chain.firstDecided(overrides)
+                ?: chain.firstDecided(::sharedOverride)
+                ?: chain.mapNotNull { causes(it).decided() ?: sharedCause(it, decoding).decided() }.lastOrNull()
+        return verdict == Verdict.PERMANENT
     }
 
     companion object {
-        const val PERMANENT = true
-        const val TRANSIENT = false
         internal const val MAX_CAUSE_DEPTH = 20
 
         /** Confluent's error codes for a subject or schema id the registry does not know. */
         private val SCHEMA_NOT_FOUND = setOf(40401, 40403)
 
-        private fun sharedOverride(exception: Throwable): Boolean? =
+        private fun List<Throwable>.firstDecided(rule: (Throwable) -> Verdict): Verdict? = firstNotNullOfOrNull { rule(it).decided() }
+
+        private fun Verdict.decided(): Verdict? = takeUnless { it == Verdict.NONE }
+
+        private fun sharedOverride(exception: Throwable): Verdict =
             when (exception) {
                 // Spring's default fatal exceptions, which the error handler no longer short-circuits:
                 // a record the listener method cannot be invoked with.
                 is MessageConversionException, is ConversionException, is MethodArgumentResolutionException,
                 is NoSuchMethodException, is ClassCastException,
-                -> PERMANENT
+                -> Verdict.PERMANENT
 
-                else -> null
+                else -> Verdict.NONE
             }
 
         private fun sharedCause(
             exception: Throwable,
             decoding: Boolean,
-        ): Boolean? =
+        ): Verdict =
             when (exception) {
                 // Also what a registry that could not be asked surfaces as, so a cause below usually decides.
-                is DeserializationException -> PERMANENT
+                is DeserializationException -> Verdict.PERMANENT
 
                 // A wrapper the Confluent deserializers put around both bad bytes and registry I/O.
-                is SerializationException -> null
+                is SerializationException -> Verdict.NONE
 
                 // Truncated bytes while decoding; elsewhere, such as a dropped download, a plain I/O failure.
-                is EOFException if decoding -> PERMANENT
+                is EOFException if decoding -> Verdict.PERMANENT
 
                 // Ahead of IOException, which it extends, as does EOFException.
-                is InvalidProtocolBufferException -> PERMANENT
+                is InvalidProtocolBufferException -> Verdict.PERMANENT
 
                 // The record's schema id is not in the registry: a real one answers 40403, the mock 40401.
-                is RestClientException if exception.errorCode in SCHEMA_NOT_FOUND -> PERMANENT
+                is RestClientException if exception.errorCode in SCHEMA_NOT_FOUND -> Verdict.PERMANENT
 
-                is RestClientException -> TRANSIENT
+                is RestClientException -> Verdict.TRANSIENT
 
-                is KafkaException -> TRANSIENT
+                is KafkaException -> Verdict.TRANSIENT
 
-                is IOException -> TRANSIENT
+                is IOException -> Verdict.TRANSIENT
 
-                else -> null
+                else -> Verdict.NONE
             }
     }
 }

@@ -47,7 +47,7 @@ class DeadLetterErrorHandlerTest {
             template.sent
                 .single()
                 .value()
-                .originalValue
+                .record.rawValue
                 .toByteArray()
                 .toList(),
         )
@@ -183,7 +183,7 @@ class DeadLetterErrorHandlerTest {
         withoutDeadLetterTopic: WithoutDeadLetterTopic = WithoutDeadLetterTopic.RETRY,
     ) = deadLetteringErrorHandler(
         recoverer,
-        FailureClassifier(overrides = { if (it is UnprocessableException) FailureClassifier.PERMANENT else null }),
+        FailureClassifier(overrides = { if (it is UnprocessableException) Verdict.PERMANENT else Verdict.NONE }),
         withoutDeadLetterTopic = withoutDeadLetterTopic,
         logger = logger,
     )

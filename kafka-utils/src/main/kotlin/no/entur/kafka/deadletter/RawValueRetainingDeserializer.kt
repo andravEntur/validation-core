@@ -7,8 +7,9 @@ import org.apache.kafka.common.serialization.Deserializer
 const val RAW_VALUE_HEADER = "entur_dlt_raw_value"
 
 /**
- * Copies the incoming bytes onto [RAW_VALUE_HEADER] before delegating, so [DeadLetterRecoverer] can
- * publish them unchanged, schema-id prefix included, even when [delegate] cannot decode them.
+ * Copies the incoming bytes onto [RAW_VALUE_HEADER] before delegating, so [DeadLetterRecoverer] has
+ * them, schema-id prefix included, for a value that is not a protobuf message, even one [delegate]
+ * cannot decode.
  */
 class RawValueRetainingDeserializer<T>(
     private val delegate: Deserializer<T>,

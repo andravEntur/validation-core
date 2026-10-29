@@ -1,6 +1,6 @@
 # validation-core
 
-Shared protobuf schema for Entur's validation platform, published as Java/Kotlin libraries. Nine
+Shared protobuf schema for Entur's validation platform, published as Java/Kotlin libraries. Eight
 Gradle modules - `http-model` (the shared `entur.http.v1` `Failure`/`ProblemDetail` types),
 `validation-model` (the `entur.validation.v1` domain messages), `kittum-api` (Kittum's
 `entur.kittum.v1` service definitions), `zagar-api` (Zagar's `entur.zagar.v1` service
@@ -8,16 +8,14 @@ definitions), `proto-utils` (hand-written, domain-agnostic proto/HTTP plumbing b
 three), `exposed-utils` (JetBrains Exposed-specific persistence support - ETag concurrency,
 cursor paging - built on `proto-utils`), `api-utils` (hand-written Spring WebFlux/Security
 support - OpenAPI spec serving, content negotiation, audience-validation and method-security
-configuration), `kafka-utils` (hand-written Kafka tracing support - the `X-Correlation-Id`/
-`ET-Client-Name` headers and matching MDC entries), and `kafka-dead-letter` (hand-written Kafka
-dead-lettering - failure classification, the `DeadLetter` envelope recoverer and error handler) -
-see "Non-schema modules" below
-
-- each published as its own Maven artifact.
+configuration), and `kafka-utils` (hand-written Kafka support - tracing via the `X-Correlation-Id`/
+`ET-Client-Name` headers and matching MDC entries, and dead-lettering via failure classification
+and the `DeadLetter` envelope recoverer and error handler) - each published as its own Maven
+artifact; see "Non-schema modules" in `README.md`.
 
 This repository is schema and generated code plus, in `proto-utils`, `exposed-utils`,
-`api-utils`, `kafka-utils` and `kafka-dead-letter`, hand-written support code built on top of it - see "Non-schema modules" in
-`README.md`. There is no application
+`api-utils` and `kafka-utils`, hand-written support code built on top of it - see "Non-schema
+modules" in `README.md`. There is no application
 implementation, no database, no Dockerfile, and nothing deployable (`exposed-utils`'s Postgres-backed
 tests run against a throwaway Testcontainers instance, not a real database). The parts of the golden
 path that assume a running service - Helm, Terraform, `compose.yaml`, `.entur/` self-service
@@ -34,8 +32,7 @@ https://github.com/entur/ai/blob/main/AGENTS.md
 - Artifacts: `no.entur.validation:http-model`, `no.entur.validation:validation-model`,
   `no.entur.validation:kittum-api`, `no.entur.validation:zagar-api`,
   `no.entur.validation:proto-utils`, `no.entur.validation:exposed-utils`,
-  `no.entur.validation:api-utils`, `no.entur.validation:kafka-utils`,
-  `no.entur.validation:kafka-dead-letter`
+  `no.entur.validation:api-utils`, `no.entur.validation:kafka-utils`
 - Published to Entur's JFrog Artifactory (`entur-release-standard`) via `entur/gha-artifactory`.
   Publishing is manual and tag-triggered: pushing a `v<major>.<minor>.<patch>` tag runs CD, which
   publishes that exact version. Merging to `main` does not publish by itself. See "Versioning and
