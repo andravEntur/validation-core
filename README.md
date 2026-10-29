@@ -8,7 +8,7 @@ hand-written support library built on top of the generated types.
 
 ## Modules
 
-Eight Gradle modules, each published as its own Maven artifact, sharing one version:
+Nine Gradle modules, each published as its own Maven artifact, sharing one version:
 
 | Module | Proto package | Artifact | Contents |
 |--------|---------------|----------|----------|
@@ -20,6 +20,7 @@ Eight Gradle modules, each published as its own Maven artifact, sharing one vers
 | [`exposed-utils`](exposed-utils) | — (hand-written, not proto-generated) | `no.entur.validation:exposed-utils` | JetBrains Exposed-specific persistence support (ETag concurrency, cursor paging) built on `proto-utils`. See "Non-schema modules" below. |
 | [`api-utils`](api-utils) | — (hand-written, not proto-generated) | `no.entur.validation:api-utils` | Spring WebFlux/Security support (OpenAPI spec serving, content negotiation, audience-validation and method-security configuration) for services built on this schema. See "Non-schema modules" below. |
 | [`kafka-utils`](kafka-utils) | — (hand-written, not proto-generated) | `no.entur.validation:kafka-utils` | Kafka tracing: the `X-Correlation-Id`/`ET-Client-Name` headers every validation service stamps on what it produces, and the `correlationId`/`clientName` MDC entries it logs with while processing a consumed record. See "Non-schema modules" below. |
+| [`kafka-dead-letter`](kafka-dead-letter) | — (hand-written, not proto-generated) | `no.entur.validation:kafka-dead-letter` | Kafka dead-lettering: which listener failures are permanent, the `entur.validation.v1.DeadLetter` envelope they are published to `validation-dlt-{env}` in, and the error handler that does it. See "Non-schema modules" below. |
 
 More packages (and modules) are expected as new APIs are added on top of the shared model.
 
@@ -151,6 +152,30 @@ fills one in from the MDC, or `"not set"`. `TracingRecordInterceptor` goes on ea
 factory (`setRecordInterceptor`) and puts the consumed record's correlation id and sender's client
 name in the MDC while the listener runs, so whatever the listener produces carries the same id.
 Like the other non-schema modules it is published with the rest.
+
+`kafka-dead-letter` has no proto of its own (the `DeadLetter` envelope is in `validation-model`) and no
+Spring beans: services build its pieces by hand, one error handler per listener container, since it
+keeps retry state per partition.
+
+- `RawValueRetainingDeserializer` wraps the value deserializer, inside `ErrorHandlingDeserializer`,
+  and keeps the consumed bytes on a header so even an undecodable record is dead-lettered exactly.
+- `FailureClassifier` decides permanent vs. transient. It knows the failures every service shares
+  (undecodable bytes, a schema id the registry lacks, Spring's former fatal list are permanent;
+  registry, broker and I/O trouble transient); a service adds its own through `overrides` (verdicts
+  that hold whatever they wrap) and `causes` (the innermost classified cause wins).
+- `DeadLetterRecoverer` publishes a `DeadLetter` - the original bytes, coordinates, headers, the
+  correlation id and the failure - through a `KafkaOperations<String, DeadLetter>`, which should
+  carry a Confluent protobuf serializer and `kafka-utils`' `TracingProducerInterceptor`. It throws
+  when the publish fails, so the offset stays uncommitted.
+- `deadLetteringErrorHandler(...)` dead-letters and commits permanent failures and retries transient
+  ones forever with capped backoff. It commits recovered records itself, so the container needs
+  AckMode `MANUAL_IMMEDIATE` (or `RECORD`). With no recoverer, permanent failures are retried too
+  (`WithoutDeadLetterTopic.RETRY`) or logged and committed (`LOG_AND_COMMIT`).
+
+`FailureClassifier` checks for the schema registry client's `RestClientException`, which this module
+only compiles against (from Confluent's Maven repository, scoped to the `io.confluent` group): a
+consumer must have `io.confluent:kafka-schema-registry-client` on its runtime classpath, as every
+service using Confluent's serdes already does.
 
 ## Versioning and publishing
 

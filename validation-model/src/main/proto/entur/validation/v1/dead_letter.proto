@@ -1,0 +1,60 @@
+syntax = "proto3";
+
+package entur.validation.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/entur/validation-core/gen/entur/validation/v1;validationv1";
+option java_multiple_files = true;
+option java_package = "no.entur.validation.proto.v1";
+
+// A record a service consumed but could never process, published to validation-dlt-{env}.
+message DeadLetter {
+  // The exact bytes the record was consumed as, schema-id framing included, so it can be replayed
+  // unchanged. Unset for a tombstone, which is distinct from an empty value.
+  optional bytes original_value = 1;
+  // The topic the record was consumed from.
+  string original_topic = 2;
+  // The partition the record was consumed from.
+  int32 original_partition = 3;
+  // The record's offset in its partition.
+  int64 original_offset = 4;
+  // The record's own timestamp, unset when it has none.
+  google.protobuf.Timestamp original_timestamp = 5;
+  // The record's key, unset when it has none.
+  optional string original_key = 6;
+  // The record's headers in their original order, duplicates kept, so it can be replayed exactly.
+  repeated Header original_headers = 7;
+  // The service that gave up on the record, the same name it sends as ET-Client-Name.
+  string failing_service = 8;
+  // The record's X-Correlation-Id, empty when it had none.
+  string correlation_id = 9;
+  // The consumer group the failing service consumed the record in.
+  string consumer_group = 10;
+  // Why the service gave up on the record.
+  Failure failure = 11;
+  // When the record was dead-lettered.
+  google.protobuf.Timestamp dead_lettered_at = 12;
+
+  // A Kafka record header.
+  message Header {
+    // The header's name.
+    string key = 1;
+    // The header's value, as raw bytes.
+    bytes value = 2;
+  }
+
+  // The exception the service gave up on the record with.
+  message Failure {
+    // The exception's fully qualified class name.
+    string exception_class = 1;
+    // The exception's message, empty when it has none.
+    string message = 2;
+    // The fully qualified class name of the exception's direct cause, if any.
+    optional string cause_class = 3;
+    // The message of the exception's direct cause, if it has one.
+    optional string cause_message = 4;
+    // The exception's stack trace, causes included, truncated if very long.
+    string stacktrace = 5;
+  }
+}
