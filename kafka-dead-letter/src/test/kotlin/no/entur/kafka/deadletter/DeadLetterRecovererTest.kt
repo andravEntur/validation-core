@@ -112,6 +112,30 @@ class DeadLetterRecovererTest {
     }
 
     @Test
+    fun `dead-letters a tombstone even when its failure's causes loop`() {
+        val first = IllegalStateException("first")
+        val second = IllegalStateException("second", first)
+        first.initCause(second)
+
+        val deadLetter = recoverer.toDeadLetter(ConsumerRecord<String, Any?>(TOPIC, 0, OFFSET, "RUT", null), first)
+
+        assertFalse(deadLetter.hasOriginalValue())
+    }
+
+    @Test
+    fun `keeps a null header value apart from an empty one`() {
+        val record =
+            rawRecord().apply {
+                headers().add("null", null)
+                headers().add("empty", ByteArray(0))
+            }
+
+        val headers = recoverer.toDeadLetter(record, IllegalStateException()).originalHeadersList
+
+        assertEquals(listOf("null" to false, "empty" to true), headers.map { it.key to it.hasValue() })
+    }
+
+    @Test
     fun `refuses a decoded value with no bytes to keep`() {
         assertThrows<IllegalStateException> {
             recoverer.toDeadLetter(ConsumerRecord<String, Any?>(TOPIC, 0, OFFSET, "RUT", "decoded"), IllegalStateException())

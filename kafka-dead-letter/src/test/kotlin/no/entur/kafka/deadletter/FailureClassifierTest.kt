@@ -70,6 +70,9 @@ class FailureClassifierTest {
 
         val lenient = FailureClassifier(overrides = { if (it is MessageConversionException) FailureClassifier.TRANSIENT else null })
         assertFalse(lenient.isPermanent(listenerFailure(MessageConversionException("not yet"))))
+
+        val retryable = FailureClassifier(overrides = { if (it is DatasetGoneException) FailureClassifier.TRANSIENT else null })
+        assertFalse(retryable.isPermanent(MessageConversionException("wrapped", DatasetGoneException(IOException("503")))))
     }
 
     @Test

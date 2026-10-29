@@ -46,6 +46,19 @@ class RawValueRetainingDeserializerTest {
         assertNull(headers.lastHeader(RAW_VALUE_HEADER))
     }
 
+    @Test
+    fun `drops a raw-value header the record arrived with`() {
+        val tombstone = RecordHeaders().apply { add(RAW_VALUE_HEADER, "stale".toByteArray()) }
+        val record = RecordHeaders().apply { add(RAW_VALUE_HEADER, "stale".toByteArray()) }
+
+        RawValueRetainingDeserializer(StringDeserializer()).deserialize(TOPIC, tombstone, null as ByteArray?)
+        RawValueRetainingDeserializer(StringDeserializer()).deserialize(TOPIC, record, BYTES)
+
+        assertNull(tombstone.lastHeader(RAW_VALUE_HEADER))
+        assertEquals(1, record.headers(RAW_VALUE_HEADER).count())
+        assertContentEquals(BYTES, record.lastHeader(RAW_VALUE_HEADER).value())
+    }
+
     private companion object {
         const val TOPIC = "validation-delivery-dev"
         val BYTES = "RUT".toByteArray()

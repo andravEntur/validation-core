@@ -40,8 +40,8 @@ message DeadLetter {
   message Header {
     // The header's name.
     string key = 1;
-    // The header's value, as raw bytes.
-    bytes value = 2;
+    // The header's value, as raw bytes. Unset for a null value, which is distinct from an empty one.
+    optional bytes value = 2;
   }
 
   // The exception the service gave up on the record with.

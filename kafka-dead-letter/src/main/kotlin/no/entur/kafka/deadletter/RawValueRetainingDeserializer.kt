@@ -28,6 +28,8 @@ class RawValueRetainingDeserializer<T>(
         headers: Headers,
         data: ByteArray?,
     ): T? {
+        // Only this record's own bytes may be read back as its value, never a header it arrived with.
+        headers.remove(RAW_VALUE_HEADER)
         if (data != null) {
             headers.add(RAW_VALUE_HEADER, data)
         }

@@ -17,8 +17,9 @@ import java.io.IOException
  * wrong guess that way stalls the partition, visible as consumer lag, instead of dropping a record.
  *
  * Verdicts are [PERMANENT], [TRANSIENT] or null for none. [overrides] hold whatever the exception
- * wraps, and the outermost one wins; otherwise the innermost cause with a [causes] verdict wins,
- * since the outer frames only say where the failure surfaced. Both are asked before the shared ones.
+ * wraps: the outermost service override wins, then the outermost shared one. Otherwise the innermost
+ * cause with a verdict wins, asking [causes] before the shared rules, since the outer frames only say
+ * where the failure surfaced.
  */
 class FailureClassifier(
     private val overrides: (Throwable) -> Boolean? = { null },
@@ -30,7 +31,8 @@ class FailureClassifier(
                 .take(MAX_CAUSE_DEPTH)
                 .toList()
         val decoding = chain.any { it is DeserializationException }
-        return chain.firstNotNullOfOrNull { overrides(it) ?: sharedOverride(it) }
+        return chain.firstNotNullOfOrNull(overrides)
+            ?: chain.firstNotNullOfOrNull(::sharedOverride)
             ?: chain.mapNotNull { causes(it) ?: sharedCause(it, decoding) }.lastOrNull()
             ?: TRANSIENT
     }
@@ -38,7 +40,7 @@ class FailureClassifier(
     companion object {
         const val PERMANENT = true
         const val TRANSIENT = false
-        private const val MAX_CAUSE_DEPTH = 20
+        internal const val MAX_CAUSE_DEPTH = 20
 
         /** Confluent's error codes for a subject or schema id the registry does not know. */
         private val SCHEMA_NOT_FOUND = setOf(40401, 40403)

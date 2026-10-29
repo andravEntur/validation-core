@@ -108,6 +108,7 @@ class DeadLetterRecoverer(
             }
             // A value ErrorHandlingDeserializer could not decode is null on the record, not a tombstone.
             return generateSequence(exception) { current -> current.cause?.takeIf { it !== current } }
+                .take(FailureClassifier.MAX_CAUSE_DEPTH)
                 .filterIsInstance<DeserializationException>()
                 .firstOrNull { !it.isKey }
                 ?.data
