@@ -163,8 +163,9 @@ keeps retry state per partition:
   and keeps the consumed bytes on a header, so a record that does not decode to a protobuf message,
   even an undecodable one, is dead-lettered with the exact bytes it was consumed as.
 - `FailureClassifier` decides permanent vs. transient. It knows the failures every service shares
-  (undecodable bytes, a schema id the registry lacks, Spring's former fatal list are permanent;
-  registry, broker and I/O trouble transient); a service adds its own `Verdict`s through `overrides`
+  (undecodable bytes, a consumed record's schema id the registry lacks, Spring's former fatal list
+  are permanent; a subject missing when publishing, registry, broker and I/O trouble transient); a
+  service adds its own `Verdict`s through `overrides`
   (verdicts that hold whatever they wrap) and `causes` (the innermost classified cause wins).
 - `DeadLetterRecoverer` publishes a `DeadLetter` - the record (coordinates, headers, and its value:
   the decoded protobuf message as an `Any`, else the consumed bytes), the consumer, the correlation
