@@ -3,8 +3,9 @@
 ## Description
 
 This repository contains shared code for Entur's validation platform and its APIs, published as
-Java libraries. Most of it is schema and generated code; `proto-utils` is the one exception - a
-hand-written support library built on top of the generated types.
+Java libraries. Most of it is schema and generated code; four modules (`proto-utils`,
+`exposed-utils`, `api-utils`, `kafka-utils`) are hand-written support libraries built on top of
+the generated types.
 
 ## Modules
 
@@ -16,10 +17,10 @@ Eight Gradle modules, each published as its own Maven artifact, sharing one vers
 | [`validation-model`](validation-model) | `entur.validation.v1` | `no.entur.validation:validation-model` | The domain messages. |
 | [`kittum-api`](kittum-api) | `entur.kittum.v1` | `no.entur.validation:kittum-api` | Kittum's gRPC/REST service definitions and their Request/Response messages. |
 | [`zagar-api`](zagar-api) | `entur.zagar.v1` | `no.entur.validation:zagar-api` | Zagar's gRPC/REST service definitions and their Request/Response messages. |
-| [`proto-utils`](proto-utils) | — | `no.entur.validation:proto-utils` | Domain-agnostic proto/HTTP plumbing (update masks, protobuf-JSON codecs, oneof serialization, `ProblemDetail` error mapping) for WebFlux services built on this schema. See "Non-schema modules" below. |
-| [`exposed-utils`](exposed-utils) | — | `no.entur.validation:exposed-utils` | JetBrains Exposed-specific persistence support (ETag concurrency, cursor paging) built on `proto-utils`. See "Non-schema modules" below. |
-| [`api-utils`](api-utils) | — | `no.entur.validation:api-utils` | Spring WebFlux/Security support (OpenAPI spec serving, content negotiation, audience-validation and method-security configuration) for services built on this schema. See "Non-schema modules" below. |
-| [`kafka-utils`](kafka-utils) | — | `no.entur.validation:kafka-utils` | Kafka tracing (the `X-Correlation-Id`/`ET-Client-Name` headers every validation service stamps on what it produces, and the `correlationId`/`clientName` MDC entries it logs with while processing a consumed record), dead-lettering (which listener failures are permanent, the `entur.validation.v1.DeadLetter` envelope they are published in, and the error handler that does it), SASL/client-property setup, log sanitizing, and schema-registry sanitizing for a message that is also a REST resource. See "Non-schema modules" below. |
+| [`proto-utils`](proto-utils) | — (hand-written, not proto-generated) | `no.entur.validation:proto-utils` | Domain-agnostic proto/HTTP plumbing (update masks, id checks, oneof serialization, timestamps, schema-registry sanitizing). See "Non-schema modules" below. |
+| [`exposed-utils`](exposed-utils) | — (hand-written, not proto-generated) | `no.entur.validation:exposed-utils` | Persistence support for the Exposed SQL library (ETag concurrency, cursor paging) built on `proto-utils`. See "Non-schema modules" below. |
+| [`api-utils`](api-utils) | — (hand-written, not proto-generated) | `no.entur.validation:api-utils` | Spring WebFlux/Security support (protobuf-JSON codecs, `ProblemDetail` error mapping, OpenAPI spec serving, content negotiation, audience-validation and method-security configuration) for services built on this schema. See "Non-schema modules" below. |
+| [`kafka-utils`](kafka-utils) | — (hand-written, not proto-generated) | `no.entur.validation:kafka-utils` | Kafka tracing (the `X-Correlation-Id`/`ET-Client-Name` headers every validation service stamps on what it produces, and the `correlationId`/`clientName` MDC entries it logs with while processing a consumed record), dead-lettering (which listener failures are permanent, the `entur.validation.v1.DeadLetter` envelope they are published in, and the error handler that does it), SASL/client-property setup, log sanitizing, and schema-registry sanitizing for a message that is also a REST resource. See "Non-schema modules" below. |
 
 More packages (and modules) are expected as new APIs are added on top of the shared model.
 
@@ -31,8 +32,19 @@ git clone git@github.com:entur/validation-core.git
 
 ## Build
 
+The build needs `buf` and `protoc`. Install them once with [mise](https://mise.jdx.dev), which
+reads the pinned versions from [`.mise.toml`](.mise.toml):
+
 ```shell
-./gradlew clean build
+brew install mise   # macOS; for other platforms see https://mise.jdx.dev/getting-started.html
+mise trust          # allow this repo's .mise.toml
+mise install        # installs buf, protoc, Java 25 and Gradle at the pinned versions
+```
+
+Then build:
+
+```shell
+mise exec -- ./gradlew clean build
 ```
 
 This runs `buf generate` on all modules before compiling. Each module's jar also bundles its own `.proto` sources,
@@ -43,8 +55,9 @@ so a consumer that needs the raw schema  can get it from the same published arti
 - Java 25
 - Gradle (wrapper included)
 - `buf` (the Buf CLI, from Buf Technologies) and `protoc` (the Protocol Buffers compiler, from
-  Google) - both pinned in [`.mise.toml`](.mise.toml); install them directly, or run `mise install`
-  to get the pinned versions automatically
+  Google) - both pinned in [`.mise.toml`](.mise.toml). Install them with mise as shown above:
+  the build looks for `buf` in mise's shims directory (`~/.local/share/mise/shims`) first, and
+  only falls back to whatever `buf` is on your `PATH`, which may not be the pinned version
 
 ### Schema changes
 
@@ -109,120 +122,98 @@ Copy the pattern from [`kittum-api`](kittum-api):
 
 ## Non-schema modules
 
-[`proto-utils`](proto-utils), [`exposed-utils`](exposed-utils) and [`api-utils`](api-utils) don't fit
-the "Adding a new API module" pattern above: none has a `src/main/proto` of its own. `proto-utils`
-and `exposed-utils` each have only a test-fixtures `.proto` under their own `src/test/proto`,
-generated via `buf` + `protoc_builtin` - the same mechanism `http-model`/`validation-model`/`kittum-api`
-use, wired up by the reusable `entur.test-proto-module` convention plugin
-(`buildSrc/src/main/kotlin/entur.test-proto-module.gradle.kts`) rather than a hand-rolled
-`bufGenerate` task. The two fixture files overlap on a few message shapes (`Widget` and friends,
-`Note`) that both modules' tests happen to need, deliberately duplicated rather than shared across a
-module boundary - each module's `.proto` is small and self-contained, and the overlap is internal
-test fixtures with no compatibility guarantee anyway. Both are listed in the root `buf.yaml`
-workspace (buf's PACKAGE_DIRECTORY_MATCH rule and resolving `google.api.field_behavior` both require
-workspace membership), each with the same pared-down per-module override - `lint.use: [STANDARD]`
-only, `breaking.use: []` - since the full COMMENTS ruleset and wire-compatibility checks exist to
-protect a published contract, not throwaway fixtures. `api-utils` has no proto at all - its tests
-(`OneofSerialization`'s round-trip aside, which lives in `proto-utils` and depends on
-`validation-model` directly for real generated types) need no generated message types, so it isn't in
-the `buf.yaml` workspace and has no `entur.test-proto-module` wiring.
+Four modules contain hand-written Kotlin instead of `.proto` files. They hold shared code that the
+validation services would otherwise each write themselves.
 
-`proto-utils` and `api-utils` both apply `kotlin.plugin.spring` and `ktlint` directly
-(`http-model`/`validation-model`/`kittum-api` need neither) - see each module's own `build.gradle.kts`
-for why a given dependency is `api` vs `implementation`. `exposed-utils` holds every Exposed-specific
-piece that used to live in `proto-utils` (ETag concurrency, cursor paging), applies `ktlint` directly
-like the other two but not `kotlin.plugin.spring` (it has no `@Configuration`/`@RestControllerAdvice`
-classes), and is the only module depending on Exposed and Testcontainers. `api-utils` is the only
-module depending on Spring Security and Entur's OIDC resource-server library, since
-`AudienceValidationGuard`/`MethodSecurityConfig` are the only `@Configuration` classes outside
-`proto-utils`'s own WebFlux codec/error-handling config. `proto-utils` and `api-utils` (unlike
-`exposed-utils`, which has no Spring beans of its own) rely entirely on
-`META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` to register their
-`@Configuration`/`@RestController`/`@RestControllerAdvice` beans in a consuming app, since neither
-module's packages are reachable by that app's own component scan - each one's own
-`AutoConfigurationImportsTest` checks that file stays in sync with what it actually ships. All three
-modules are still published the same way as the other modules (root `subprojects {}` applies
-`maven-publish` to all of them uniformly), so releasing any of them needs no special handling.
+| Module | Use it for | Key classes |
+|--------|-----------|-------------|
+| `proto-utils` | Working with protobuf messages in a REST API | `UpdateMaskSupport` (PATCH with `update_mask`), `IdentifierSupport` (body id must match path id), `OneofSerialization`, `ProtoTimestamps`, `SchemaRegistrySanitizer`, `ConflictException`/`ElementNotFoundException` |
+| `exposed-utils` | Storing those messages in Postgres with the Exposed SQL library | `ConcurrencySupport` (ETag/`If-Match`), `PagingSupport` + `SortableProperties` (`order_by` and cursor paging), `PostgresEnumColumnType` |
+| `api-utils` | Spring WebFlux REST services | Protobuf JSON codecs, `ApiExceptionHandler` (exceptions to `ProblemDetail`), `OpenApiController` (serves the spec), `AudienceValidationGuard`, `MethodSecurityConfig` |
+| `kafka-utils` | Kafka producers and listeners | Tracing interceptors, dead-lettering, client config (`KafkaClientProperties`, `KafkaSasl`, `singleRecordContainerFactory`), `sanitizeForLog`, `RegistrySanitizedSchema` (see below) |
 
-`kafka-utils` has no proto of its own (the `DeadLetter` envelope is in `validation-model`, which it
-depends on) and no Spring beans: services wire its pieces in by hand.
+All three others build on `proto-utils`. `api-utils` also uses `http-model`, and `kafka-utils` uses `validation-model`.
 
-Tracing (`no.entur.kafka`):
+### Wiring them into a service
 
-- `TracingProducerInterceptor` goes on each `KafkaTemplate` (`setProducerInterceptor`). It sets
-  `ET-Client-Name` to the producing service and, when the record has no `X-Correlation-Id` of its
-  own, fills one in from the MDC, or `"not set"`.
-- `TracingRecordInterceptor` goes on each listener container factory (`setRecordInterceptor`) and
-  puts the consumed record's correlation id and sender's client name in the MDC while the listener
-  runs, so whatever the listener produces carries the same id.
+- **`api-utils` registers its beans automatically.** Spring Boot discovers them through
+  `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`.
+  The service must still bundle an OpenAPI spec and set `entur.api.openapi.spec-location` to its
+  classpath path, and configure accepted audiences in `entur.auth.apis` for every trusted issuer.
+  When you add or remove a bean, update that file too; `AutoConfigurationImportsTest` fails if
+  you forget.
+- **The other three have no Spring beans.** Call their functions directly, or for `kafka-utils`,
+  register its classes on your Kafka setup as described below.
 
-Dead-lettering (`no.entur.kafka.deadletter`), one error handler per listener container, since it
-keeps retry state per partition:
+### kafka-utils
 
-- `RawValueRetainingDeserializer` wraps the value deserializer, inside `ErrorHandlingDeserializer`,
-  and keeps the consumed bytes on a header, so a record that does not decode to a protobuf message,
-  even an undecodable one, is dead-lettered with the exact bytes it was consumed as.
-- `FailureClassifier` decides permanent vs. transient. It knows the failures every service shares
-  (undecodable bytes, a consumed record's schema id the registry lacks, Spring's former fatal list
-  are permanent; a subject missing when publishing, registry, broker and I/O trouble transient); a
-  service adds its own `Verdict`s through `overrides`
-  (verdicts that hold whatever they wrap) and `causes` (the innermost classified cause wins).
-- `DeadLetterRecoverer` publishes a `DeadLetter` - the record (coordinates, headers, and its value:
-  the decoded protobuf message as an `Any`, else the consumed bytes), the consumer, the correlation
-  id and the failure - through a `KafkaOperations<String, DeadLetter>`, which should carry a
-  Confluent protobuf serializer and the `TracingProducerInterceptor`. It throws when the publish
-  fails, so the offset stays uncommitted.
-- `deadLetteringErrorHandler(...)` dead-letters and commits permanent failures and retries transient
-  ones forever with capped backoff. It commits recovered records itself, so the container needs
-  AckMode `MANUAL_IMMEDIATE` (or `RECORD`). With no recoverer, permanent failures are retried too
-  (`WithoutDeadLetterTopic.RETRY`) or logged and committed (`LOG_AND_COMMIT`).
+**Tracing** (`no.entur.kafka`): keeps one correlation id across every service a message passes
+through.
 
-Kafka client configuration (`no.entur.kafka`):
+- `TracingProducerInterceptor`: set it on each `KafkaTemplate` (`setProducerInterceptor`). It adds
+  an `ET-Client-Name` header naming your service, and an `X-Correlation-Id` header taken from the
+  MDC (or `"not set"`) when the record doesn't already have one.
+- `TracingRecordInterceptor`: set it on each listener container factory (`setRecordInterceptor`).
+  While your listener runs, it puts the incoming record's correlation id and sender in the MDC, so
+  your logs and anything you produce carry the same id.
 
-- `Authentication(user, password)` is one SCRAM user/password pair; `null` means an
-  unauthenticated, local run.
-- `KafkaSasl` builds the SCRAM broker properties and the schema registry's basic-auth properties
-  from an `Authentication`. The broker properties carry no credentials in `sasl.jaas.config`
-  itself -- `AuthenticationCallbackHandler`, set as `sasl.client.callback.handler.class`, supplies
-  the username and password directly to the SASL handshake instead.
-- `KafkaClientProperties.common(...)` builds the bootstrap servers, security protocol and schema
-  registry URL a client needs, plus both of `KafkaSasl`'s property sets when `auth` is non-null. A
-  service still adds its own consumer- or producer-specific properties (offset reset, compression,
-  auto-register-schemas, ...) on top.
-- `singleRecordContainerFactory(...)` builds a `ConcurrentKafkaListenerContainerFactory` for one
-  record at a time: `concurrency(1)`, `AckMode.MANUAL_IMMEDIATE`, a `TracingRecordInterceptor` by
-  default, and the given consumer factory and error handler. An optional `pollTimeout` overrides
-  `ContainerProperties`' own default; left unset, a service's listener polls at Spring Kafka's
-  usual cadence rather than one tuned for a long-running record.
+**Dead-lettering** (`no.entur.kafka.deadletter`): what happens when a listener fails.
 
-Log sanitizing (`no.entur.kafka`):
+- A failure is either **permanent** (retrying won't help, e.g. bytes that can't be decoded) or
+  **transient** (e.g. the broker or schema registry is down, or a schema subject is missing when
+  publishing). `FailureClassifier` decides which.
+  It knows the common cases; add your service's own through its `overrides` and `causes`
+  parameters.
+- **Permanent:** `DeadLetterRecoverer` publishes the record to a dead-letter topic, wrapped in a
+  `DeadLetter` message (from `validation-model`) that says where it came from and why it failed,
+  and the offset is committed.
+- **Transient:** the record is retried forever, with a growing delay up to a cap. If you don't
+  give it a recoverer, permanent failures are also retried (`WithoutDeadLetterTopic.RETRY`) or
+  logged and skipped (`LOG_AND_COMMIT`).
+- `deadLetteringErrorHandler(...)` ties this together. To use it:
+  - Create **one handler per listener container**. Don't share it, because it keeps retry state
+    per partition.
+  - Set the container's AckMode to `MANUAL_IMMEDIATE` (or `RECORD`).
+  - Wrap your value deserializer in `RawValueRetainingDeserializer`, inside
+    `ErrorHandlingDeserializer`. That way even a record that can't be decoded is dead-lettered
+    with its original bytes.
+  - Give `DeadLetterRecoverer` a `KafkaOperations<String, DeadLetter>` that uses Confluent's
+    protobuf serializer and the `TracingProducerInterceptor`.
+- If publishing the dead letter fails, the offset isn't committed, so the record is tried again.
 
-- `sanitizeForLog(value)` replaces control characters (and the Unicode line/paragraph separators)
-  with `_`, so a value read off a Kafka record can't forge a log line (CWE-117) when logged.
+**Client configuration** (`no.entur.kafka`): the properties every service sets up the same way.
 
-Schema registry sanitizing (`no.entur.kafka.schema`), for a message that is both a Kafka record and
-a REST resource:
+- `KafkaClientProperties.common(...)` gives you bootstrap servers, security protocol and schema
+  registry URL. Add your own consumer- or producer-specific properties on top.
+- Pass it an `Authentication(user, password)` to also get SCRAM login for the broker and basic auth
+  for the schema registry (built by `KafkaSasl`). Pass `null` for an unauthenticated local run.
+- `singleRecordContainerFactory(...)` builds a listener container factory that handles one record
+  at a time, with `MANUAL_IMMEDIATE` AckMode and the `TracingRecordInterceptor` already set.
 
-- `RegistrySanitizedSchema(descriptor)` wraps `proto-utils`' descriptor sanitizing into a
-  `ProtobufSchema` with Entur's REST-only annotations (`google.api.field_behavior`, gnostic's
-  OpenAPI `property`) dropped from the message's file and, recursively, everything it imports -
-  what a Confluent protobuf serializer needs to pass instead of the record's own (unsanitized)
-  descriptor, since the registry has no subject for a REST-only import like
-  `gnostic/openapi/v3/annotations.proto`. It only builds the schema; a service still supplies its
-  own `KafkaProtobufSerializer` subclass that serializes against it; which overload of
-  `KafkaProtobufSerializer.serialize(...)` that subclass can delegate to depends on the Confluent
-  client version it's built against (the 4-argument overload taking an explicit schema only exists
-  from Confluent 8.3; a consumer on an older client resolves the schema's dependencies and calls
-  `serializeImpl` itself instead).
+**Other helpers:**
 
-`FailureClassifier` checks for the schema registry client's `RestClientException`,
-`KafkaClientProperties` for `AbstractKafkaSchemaSerDeConfig`'s config keys, and
-`RegistrySanitizedSchema` for `ProtobufSchema` - three classes this module only compiles against
-(from Confluent's Maven repository, scoped to the `io.confluent` group): a consumer using any of
-them must have `io.confluent:kafka-schema-registry-client`, `kafka-schema-serializer` and
-`kafka-protobuf-provider` on its runtime classpath, as every service using Confluent's protobuf
-serdes already does (`kafka-protobuf-serializer` depends on all three). Like the other non-schema
-modules it is published with the rest.
+- `sanitizeForLog(value)` replaces control characters, so a value read off a Kafka record can't
+  forge a log line.
+- `RegistrySanitizedSchema` (`no.entur.kafka.schema`) is for a message that is both a Kafka record
+  and a REST resource. It builds the schema with the REST-only annotations removed, because the
+  schema registry has no subject for those imports. Your service still needs its own
+  `KafkaProtobufSerializer` subclass that serializes against it.
+
+**Runtime dependencies:** your service needs `io.confluent:kafka-schema-registry-client`,
+`kafka-schema-serializer` and `kafka-protobuf-provider` at runtime. Any service that uses
+Confluent's protobuf serializer (`kafka-protobuf-serializer`) already has them.
+
+### Building these modules
+
+These notes are for working on this repo, not for using the libraries.
+
+- `proto-utils`, `exposed-utils` and `api-utils` each have a small test-only `.proto` in
+  `src/test/proto`. It is generated by the `entur.test-proto-module` plugin in `buildSrc` and is
+  never published. Each is in the root `buf.yaml` with lighter lint and no breaking-change check.
+  Some of these fixture files define the same messages (e.g. `Widget`). That duplication is on
+  purpose, so no module depends on another module's tests.
+- `exposed-utils`' tests start a real Postgres with Testcontainers, so they need Docker.
+- They are released together with the rest; nothing extra is needed.
 
 ## Versioning and publishing
 

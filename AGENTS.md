@@ -5,7 +5,7 @@ Gradle modules - `http-model` (the shared `entur.http.v1` `Failure`/`ProblemDeta
 `validation-model` (the `entur.validation.v1` domain messages), `kittum-api` (Kittum's
 `entur.kittum.v1` service definitions), `zagar-api` (Zagar's `entur.zagar.v1` service
 definitions), `proto-utils` (hand-written, domain-agnostic proto/HTTP plumbing built on the other
-three), `exposed-utils` (JetBrains Exposed-specific persistence support - ETag concurrency,
+three), `exposed-utils` (persistence support for the Exposed SQL library - ETag concurrency,
 cursor paging - built on `proto-utils`), `api-utils` (hand-written Spring WebFlux/Security
 support - OpenAPI spec serving, content negotiation, audience-validation and method-security
 configuration), and `kafka-utils` (hand-written Kafka support - tracing via the `X-Correlation-Id`/
@@ -42,7 +42,9 @@ https://github.com/entur/ai/blob/main/AGENTS.md
 - `buf` and `protoc` are pinned in `.mise.toml`. Gradle's `Exec` resolves an executable against the
   Gradle JVM's own `PATH`, not the environment it hands the child process, so `bufGenerate` names
   the mise shim by absolute path. A bare `buf` works in CI but fails in a mise-based local setup.
-- The consuming service lives in `entur/kittum`, its infrastructure in `entur/kittum-infrastructure`.
+- Every team-validering service consumes these artifacts. Kittum (`entur/kittum`, infrastructure in
+  `entur/kittum-infrastructure`) and Zagar additionally have their APIs defined here (`kittum-api`,
+  `zagar-api`).
 
 ## Deviations from the golden path
 
