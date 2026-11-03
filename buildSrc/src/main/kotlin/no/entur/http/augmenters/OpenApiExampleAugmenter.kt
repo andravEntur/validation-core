@@ -11,13 +11,9 @@ import no.entur.http.yamlMapOrNull
 import org.yaml.snakeyaml.Yaml
 
 /**
- * Adds a whole-object `example` to every `components.schemas` entry of a gnostic-generated openapi.yaml,
- * built from each field's own `(gnostic.openapi.v3.property).example` option.
- *
- * gnostic itself already copies a field's own `example` option onto that field's property schema for any message
- * reachable from an rpc's request/response type. But it has no equivalent for the message as a  whole, and no
- * mechanism at all for a message that isn't reachable that way, so this class reads the same per-field option directly
- * off the descriptors for every schema, and assembles one example object per schema from the result.
+ * Adds a whole-object `example` to every `components.schemas` entry, built from the fields'
+ * `(gnostic.openapi.v3.property).example` options. gnostic only sets per-field examples, and only on
+ * messages reachable from an rpc.
  */
 class OpenApiExampleAugmenter {
     fun augment(
@@ -65,13 +61,9 @@ class OpenApiExampleAugmenter {
     }
 
     /**
-     * One example object per `components.schemas` entry's own `properties`, recursing through a `$ref`,
-     * a `repeated` field's array wrapper, or a `map<string, ...>` field's `additionalProperties` wrapper via
-     * [resolve]. A field with no example anywhere in its chain, or a cycle is simply left out of the result.
-     *
-     * [oneofFieldGroups] is the message's own `oneof` groups (as field-name sets). A real instance can only ever
-     * populate one member of each, so only the first field declared in each group is considered;
-     * whether or not that first field ends up with a usable example of its own.
+     * Builds one example object from [schema]'s properties, following `$ref`s, arrays and maps through [resolve].
+     * Fields without an example, or on a cycle, are left out. Only the first field of each `oneof` in
+     * [oneofFieldGroups] is used, since a real instance sets just one.
      */
     private fun buildObjectExample(
         schema: Map<String, Any?>,
@@ -104,9 +96,7 @@ class OpenApiExampleAugmenter {
             return listOf(itemValue)
         }
         if (propertySchema["type"] == "object") {
-            // A protobuf `map<string, ...>` field: gnostic renders it as `additionalProperties`
-            // rather than a `$ref`/`properties` schema of its own, so there's no real key to put in
-            // the example - "additionalProp1" mirrors Swagger UI's own placeholder for the same case.
+            // A `map<string, ...>` field has no real key to show; "additionalProp1" is Swagger UI's placeholder.
             val additionalProperties = yamlMapOrNull(propertySchema["additionalProperties"]) ?: return null
             val valueExample =
                 additionalProperties["example"] ?: refName(additionalProperties)?.let(resolve) ?: return null
@@ -124,8 +114,8 @@ class OpenApiExampleAugmenter {
     }
 
     /**
-     * Every message's declared fields, each mapped to the value its own `(gnostic.openapi.v3.property).example`
-     * option declares - if it has one.
+     * Each message's fields mapped to their `(gnostic.openapi.v3.property).example` values, for the fields that
+     * declare one.
      */
     private fun collectFieldExamples(
         files: Collection<Descriptors.FileDescriptor>,
@@ -139,8 +129,7 @@ class OpenApiExampleAugmenter {
                 for (field in it.fields) {
                     val reparsed =
                         DescriptorProtos.FieldOptions.parseFrom(field.toProto().options.toByteString(), registry)
-                    // Keyed by jsonName (camelCase), not the proto field's own snake_case name, to match the
-                    // property names gnostic itself renders into components.schemas.*.properties.
+                    // jsonName, to match gnostic's property names.
                     fieldExample(reparsed, propertyExt)?.let { fieldExamples[field.jsonName] = it }
                 }
                 if (fieldExamples.isNotEmpty()) result[it.fullName] = fieldExamples
@@ -162,11 +151,7 @@ class OpenApiExampleAugmenter {
         return yamlText?.takeIf { it.isNotEmpty() }?.let { Yaml().load(it) }
     }
 
-    /**
-     * Each name in [schemaNames] mapped to the full name of the one message declared anywhere in
-     * [files] with that short (unqualified) name, for matching a `components.schemas` key back to the descriptor it
-     * came from. Only [schemaNames] are resolved.
-     */
+    /** Maps each `components.schemas` key (a short message name) to the message's full name. */
     private fun indexMessagesByShortName(
         files: Collection<Descriptors.FileDescriptor>,
         schemaNames: Set<String>,
@@ -186,9 +171,8 @@ class OpenApiExampleAugmenter {
     }
 
     /**
-     * Each message's own `oneof` groups, as a list of field-name (jsonName) sets. Uses
-     * [Descriptors.FieldDescriptor.getRealContainingOneof] to avoid picking up a proto3 `optional`
-     * field's own synthetic single-field.
+     * Each message's `oneof` groups, as sets of field JSON names. Real oneofs only: a proto3 `optional` field's
+     * synthetic oneof is skipped.
      */
     private fun collectOneofFieldGroups(files: Collection<Descriptors.FileDescriptor>): Map<String, List<Set<String>>> {
         val result = files.flatMap { it.messageTypes }

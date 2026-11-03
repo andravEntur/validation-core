@@ -5,9 +5,7 @@ import java.time.Instant
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
 
-/**
- * Converts a java [Instant] to a proto [Timestamp].
- */
+/** Converts a Java [Instant] to a proto [Timestamp]. */
 fun Instant.toProtoTimestamp(): Timestamp =
     Timestamp
         .newBuilder()
@@ -15,17 +13,11 @@ fun Instant.toProtoTimestamp(): Timestamp =
         .setNanos(nano)
         .build()
 
-/**
- * Converts a proto [Timestamp] to a java [Instant].
- */
+/** Converts a proto [Timestamp] to a Java [Instant]. */
 fun Timestamp.toInstant(): Instant = Instant.ofEpochSecond(seconds, nanos.toLong())
 
-/**
- * Converts a java [OffsetDateTime] to a proto [Timestamp].
- */
+/** Converts an [OffsetDateTime] to a proto [Timestamp]. */
 fun OffsetDateTime.toProtoTimestamp(): Timestamp = toInstant().toProtoTimestamp()
 
-/**
- * Converts a proto [Timestamp] to a java [OffsetDateTime], assuming UTC.
- */
+/** Converts a proto [Timestamp] to an [OffsetDateTime] in UTC. */
 fun Timestamp.toOffsetDateTime(): OffsetDateTime = toInstant().atOffset(ZoneOffset.UTC)

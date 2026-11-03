@@ -4,8 +4,8 @@ import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig
 import org.apache.kafka.clients.CommonClientConfigs
 
 /**
- * The broker/registry endpoints and security protocol every Kafka client in a service shares, plus
- * [KafkaSasl] credentials if [auth] is set. (A null [auth] is a local, unauthenticated run.)
+ * The bootstrap-server, security-protocol and schema-registry properties every Kafka client in a service shares, plus
+ * [KafkaSasl] credentials when `auth` is set. A null `auth` is a local, unauthenticated run.
  */
 object KafkaClientProperties {
     fun common(

@@ -6,12 +6,9 @@ import org.yaml.snakeyaml.nodes.Tag
 import org.yaml.snakeyaml.representer.Represent
 import org.yaml.snakeyaml.representer.Representer
 
-/**
- * Creates a new Open API YAML specification template with formatting specifications.
- */
+/** A [Yaml] that writes OpenAPI specs in the format this repo commits. */
 fun newOpenApiYaml(): Yaml {
-    // Block style throughout, and multi-line strings as literal blocks (`|`) rather than one line with
-    // escaped `\n`s.
+    // Literal blocks (`|`) for multi-line strings, so descriptions in the committed specs diff line by line.
     val options =
         DumperOptions().apply {
             indent = 4
@@ -36,8 +33,8 @@ fun newOpenApiYaml(): Yaml {
     return Yaml(representer, options)
 }
 
-// SnakeYAML's object graph is untyped (Object/LinkedHashMap), so recovering the OpenAPI-shaped
-// Map<String, Any?> it's known to contain needs a cast that erasure can't verify.
+// SnakeYAML's object graph is untyped, so recovering the OpenAPI-shaped Map<String, Any?> it's known to
+// contain needs a cast that erasure can't verify.
 @Suppress("UNCHECKED_CAST")
 fun yamlMap(value: Any?): MutableMap<String, Any?> = value as MutableMap<String, Any?>
 
@@ -45,8 +42,8 @@ fun yamlMap(value: Any?): MutableMap<String, Any?> = value as MutableMap<String,
 fun yamlMapOrNull(value: Any?): MutableMap<String, Any?>? = value as? MutableMap<String, Any?>
 
 /**
- * A fresh copy of [value]'s Map/List structure, so no two places in it end up sharing the same Map/List
- * instance - which SnakeYAML would otherwise render as a YAML anchor/alias pair.
+ * A copy of [value]'s Map/List structure with no shared instances, which SnakeYAML would render as YAML
+ * anchors/aliases.
  */
 fun deepCopy(value: Any?): Any? =
     when (value) {

@@ -9,9 +9,8 @@ import org.gradle.api.tasks.TaskAction
 import java.io.FileInputStream
 
 /**
- * Gradle wrapper around [OpenApiAugmentationPipeline].
- *
- * Kept as thin file-in/file-out plumbing so the real logic stays testable without any Gradle API involved.
+ * Gradle task that runs [OpenApiAugmentationPipeline] on a spec file. Kept thin so the pipeline stays testable without
+ * Gradle.
  */
 abstract class AugmentOpenApi : DefaultTask() {
     @get:InputFile

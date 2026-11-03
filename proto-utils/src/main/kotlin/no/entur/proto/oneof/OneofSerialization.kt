@@ -5,7 +5,7 @@ import com.google.protobuf.Message
 import com.google.protobuf.util.JsonFormat
 import no.entur.proto.reflect.DescriptorCache
 
-/** Serialization of a protobuf oneof value. */
+/** A oneof's set field name and its value as JSON. */
 data class OneofVariant(
     /** The set field's proto name. */
     val kind: String,
@@ -13,10 +13,7 @@ data class OneofVariant(
     val json: String,
 )
 
-/**
- * Generic persistence for a proto message's `oneof` field - every variant must itself be a
- * message (not a scalar), since a variant's contents are serialized via [JsonFormat].
- */
+/** Persists a `oneof` as an [OneofVariant]. Only message-typed variants are supported, since they're stored as JSON. */
 object OneofSerialization {
     private val printer: JsonFormat.Printer = JsonFormat.printer().preservingProtoFieldNames()
     private val parser: JsonFormat.Parser = JsonFormat.parser().ignoringUnknownFields()
@@ -35,9 +32,7 @@ object OneofSerialization {
         return OneofVariant(field.name, printer.print(message.getField(field) as Message))
     }
 
-    /**
-     * Sets [variant] as [builder]'s `oneofName` oneof variant. Unknown fields are ignored.
-     */
+    /** Sets [variant] as [builder]'s `oneofName` variant. Unknown JSON fields are ignored. */
     fun deserialize(
         builder: Message.Builder,
         oneofName: String,

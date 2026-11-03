@@ -18,9 +18,8 @@ const val CORRELATION_ID_MDC_KEY = "correlationId"
 const val CLIENT_NAME_MDC_KEY = "clientName"
 
 /**
- * The record's correlation id, or null when it has none. Kafka header names are case-sensitive, but
- * not every producer spells this one the same way, so any casing is accepted. [NOT_SET] counts as
- * none, so a service that mints ids does so for it too.
+ * The record's correlation id, or null when it has none. Any header casing is accepted, since producers don't all
+ * spell it the same. [NOT_SET] counts as none, so a service that mints ids mints one for it too.
  */
 fun Headers.correlationId(): String? = lastValue(CORRELATION_ID_HEADER)?.takeUnless { it == NOT_SET }
 

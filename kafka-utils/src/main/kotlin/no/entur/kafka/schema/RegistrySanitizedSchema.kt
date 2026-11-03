@@ -33,10 +33,8 @@ class RegistrySanitizedSchema(
 }
 
 /**
- * The message at the same containing-type path as [original], in [this] (sanitized) file --
- * [FileDescriptor.findMessageTypeByName] only resolves a top-level message, so it would return
- * null for a nested [original] (or the wrong message, if a top-level type happens to share its
- * simple name).
+ * The message in this (sanitized) file at [original]'s nesting path. [FileDescriptor.findMessageTypeByName] only
+ * resolves top-level messages.
  */
 private fun FileDescriptor.findMessageType(original: Descriptor): Descriptor {
     val path = generateSequence(original) { it.containingType }.map { it.name }.toList().asReversed()
