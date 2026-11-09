@@ -22,4 +22,10 @@ message ValidationRequest {
 
   // The validation stages to skip. Empty means every stage runs.
   repeated ValidationStage skip_stages = 5;
+
+  // If specified, only run these rules.
+  repeated int32 specific_rules = 6;
+
+  // Whether the result should be considered official or not.
+  bool is_dry_run = 7;
 }
