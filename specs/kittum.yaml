@@ -1852,8 +1852,6 @@ components:
                     owner: 2
                     updatedAt: '2026-01-01T00:00:00Z'
         ValidationData:
-            required:
-              - location
             type: object
             properties:
                 originator:

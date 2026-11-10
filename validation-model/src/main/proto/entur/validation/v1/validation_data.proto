@@ -2,7 +2,6 @@ syntax = "proto3";
 
 package entur.validation.v1;
 
-import "google/api/field_behavior.proto";
 import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/entur/validation-core/gen/entur/validation/v1;validationv1";
@@ -20,7 +19,7 @@ message ValidationData {
   // The payload type of the data.
   string payload_type = 4;
   // The location of the data.
-  Location location = 5 [(google.api.field_behavior) = REQUIRED];
+  Location location = 5;
   // Various places where the data can be stored. One or more must be set.
   message Location {
     // A GCS uri to the raw data (XML, ZIP or a folder).
