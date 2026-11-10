@@ -38,3 +38,8 @@ message WithOneof {
   }
   string trailing = 4 [(gnostic.openapi.v3.property) = {example: {yaml: "\"trailing\""}}];
 }
+
+// A field whose example is a list rather than a scalar, so it is an object that could end up shared.
+message WithList {
+  repeated int32 ids = 1 [(gnostic.openapi.v3.property) = {example: {yaml: "[1, 2]"}}];
+}

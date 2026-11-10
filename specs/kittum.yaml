@@ -1699,6 +1699,9 @@ components:
             type: object
             properties:
                 rules:
+                    example:
+                      - 1
+                      - 2
                     minItems: 1
                     type: array
                     items:
@@ -1707,11 +1710,27 @@ components:
                     description: The database ids of the validation rules to run.
                         At least one is required.
                 data:
+                    example:
+                        originator: RUT
+                        externalId: rut-1730000000000
+                        payloadType: rutedata
+                        location:
+                            rawGcsUri: gs://example-bucket/rut/netex.zip
                     allOf:
                       - $ref: '#/components/schemas/ValidationData'
                     description: The data to run the rules against. Its location is
                         required.
             description: Request for RequestDryRun.
+            example:
+                rules:
+                  - 1
+                  - 2
+                data:
+                    originator: RUT
+                    externalId: rut-1730000000000
+                    payloadType: rutedata
+                    location:
+                        rawGcsUri: gs://example-bucket/rut/netex.zip
         RequestDryRunResponse:
             type: object
             properties:

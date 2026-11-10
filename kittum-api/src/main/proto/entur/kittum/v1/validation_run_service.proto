@@ -43,10 +43,18 @@ message RequestDryRunRequest {
   // The database ids of the validation rules to run. At least one is required.
   repeated int32 rules = 1 [
     (google.api.field_behavior) = REQUIRED,
-    (gnostic.openapi.v3.property) = {min_items: 1}
+    (gnostic.openapi.v3.property) = {
+      min_items: 1
+      example: {yaml: "[1, 2]"}
+    }
   ];
   // The data to run the rules against. Its location is required.
-  entur.validation.v1.ValidationData data = 2 [(google.api.field_behavior) = REQUIRED];
+  entur.validation.v1.ValidationData data = 2 [
+    (google.api.field_behavior) = REQUIRED,
+    (gnostic.openapi.v3.property) = {
+      example: {yaml: "{originator: RUT, externalId: rut-1730000000000, payloadType: rutedata, location: {rawGcsUri: \"gs://example-bucket/rut/netex.zip\"}}"}
+    }
+  ];
 }
 
 // Response for RequestDryRun.

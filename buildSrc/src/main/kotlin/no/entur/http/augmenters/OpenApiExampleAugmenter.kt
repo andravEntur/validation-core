@@ -87,19 +87,20 @@ class OpenApiExampleAugmenter {
         propertySchema: Map<String, Any?>,
         resolve: (String) -> Any?,
     ): Any? {
-        propertySchema["example"]?.let { return it }
+        // A copy: the same object in two places would be written as a YAML anchor and alias.
+        propertySchema["example"]?.let { return deepCopy(it) }
         refName(propertySchema)?.let { return resolve(it) }
         allOfRefName(propertySchema)?.let { return resolve(it) }
         if (propertySchema["type"] == "array") {
             val items = yamlMapOrNull(propertySchema["items"]) ?: return null
-            val itemValue = items["example"] ?: refName(items)?.let(resolve) ?: return null
+            val itemValue = items["example"]?.let(::deepCopy) ?: refName(items)?.let(resolve) ?: return null
             return listOf(itemValue)
         }
         if (propertySchema["type"] == "object") {
             // A `map<string, ...>` field has no real key to show; "additionalProp1" is Swagger UI's placeholder.
             val additionalProperties = yamlMapOrNull(propertySchema["additionalProperties"]) ?: return null
             val valueExample =
-                additionalProperties["example"] ?: refName(additionalProperties)?.let(resolve) ?: return null
+                additionalProperties["example"]?.let(::deepCopy) ?: refName(additionalProperties)?.let(resolve) ?: return null
             return mapOf("additionalProp1" to valueExample)
         }
         return null
