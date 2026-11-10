@@ -1053,7 +1053,7 @@ paths:
                         application/problem+json:
                             schema:
                                 $ref: '#/components/schemas/ProblemDetail'
-    /validation/v1/rule-dry-runs:
+    /validation/v1/request-dry-run:
         post:
             tags:
               - ValidationRunService
@@ -1063,12 +1063,12 @@ paths:
                  the given rules, whether or not they are part of a validation flow, each at its default
                  severity. The result is not considered official. The validation runs asynchronously; this
                  returns as soon as it has been requested, with the correlation id its validation jobs carry.
-            operationId: ValidationRunService_DryRunValidationRules
+            operationId: ValidationRunService_RequestDryRun
             requestBody:
                 content:
                     application/json:
                         schema:
-                            $ref: '#/components/schemas/DryRunValidationRulesRequest'
+                            $ref: '#/components/schemas/RequestDryRunRequest'
                 required: true
             responses:
                 '200':
@@ -1076,7 +1076,7 @@ paths:
                     content:
                         application/json:
                             schema:
-                                $ref: '#/components/schemas/DryRunValidationRulesResponse'
+                                $ref: '#/components/schemas/RequestDryRunResponse'
                 '400':
                     description: No rules are given, or `data` has no location.
                     content:
@@ -1360,37 +1360,6 @@ components:
                 stage: STRUCTURAL
                 area: Personalisering
                 flowId: 1
-        DryRunValidationRulesRequest:
-            required:
-              - rules
-              - data
-            type: object
-            properties:
-                rules:
-                    minItems: 1
-                    type: array
-                    items:
-                        type: integer
-                        format: int32
-                    description: The database ids of the validation rules to run.
-                        At least one is required.
-                data:
-                    allOf:
-                      - $ref: '#/components/schemas/ValidationData'
-                    description: The data to run the rules against. Its location is
-                        required.
-            description: Request for DryRunValidationRules.
-        DryRunValidationRulesResponse:
-            type: object
-            properties:
-                correlationId:
-                    example: 0199a5c2-7b1e-7c3a-9f4e-2d6b8a1c3e5f
-                    type: string
-                    description: The correlation id of the requested validation, carried
-                        by every validation job made from it.
-            description: Response for DryRunValidationRules.
-            example:
-                correlationId: 0199a5c2-7b1e-7c3a-9f4e-2d6b8a1c3e5f
         FieldViolation:
             description: One request field that failed validation.
             required:
@@ -1723,6 +1692,37 @@ components:
                 errors:
                   - field: name
                     message: must not be blank
+        RequestDryRunRequest:
+            required:
+              - rules
+              - data
+            type: object
+            properties:
+                rules:
+                    minItems: 1
+                    type: array
+                    items:
+                        type: integer
+                        format: int32
+                    description: The database ids of the validation rules to run.
+                        At least one is required.
+                data:
+                    allOf:
+                      - $ref: '#/components/schemas/ValidationData'
+                    description: The data to run the rules against. Its location is
+                        required.
+            description: Request for RequestDryRun.
+        RequestDryRunResponse:
+            type: object
+            properties:
+                correlationId:
+                    example: 0199a5c2-7b1e-7c3a-9f4e-2d6b8a1c3e5f
+                    type: string
+                    description: The correlation id of the requested validation, carried
+                        by every validation job made from it.
+            description: Response for RequestDryRun.
+            example:
+                correlationId: 0199a5c2-7b1e-7c3a-9f4e-2d6b8a1c3e5f
         RuleFlowItem:
             type: object
             properties:
