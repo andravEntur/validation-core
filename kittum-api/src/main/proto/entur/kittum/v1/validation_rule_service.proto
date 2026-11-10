@@ -194,7 +194,10 @@ message DeleteValidationRuleRequest {
 // Request for DryRunValidationRules.
 message DryRunValidationRulesRequest {
   // The database ids of the validation rules to run. At least one is required.
-  repeated int32 rules = 1 [(google.api.field_behavior) = REQUIRED];
+  repeated int32 rules = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (gnostic.openapi.v3.property) = {min_items: 1}
+  ];
   // The data to run the rules against. Its location is required.
   entur.validation.v1.ValidationData data = 2 [(google.api.field_behavior) = REQUIRED];
 }

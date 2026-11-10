@@ -1367,6 +1367,7 @@ components:
             type: object
             properties:
                 rules:
+                    minItems: 1
                     type: array
                     items:
                         type: integer
@@ -1851,6 +1852,8 @@ components:
                     owner: 2
                     updatedAt: '2026-01-01T00:00:00Z'
         ValidationData:
+            required:
+              - location
             type: object
             properties:
                 originator:
