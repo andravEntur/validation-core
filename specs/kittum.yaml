@@ -1056,14 +1056,14 @@ paths:
     /validation/v1/rule-dry-runs:
         post:
             tags:
-              - ValidationRuleService
+              - ValidationRunService
             summary: Dry-run validation rules against a dataset.
             description: |-
                 Dry-run validation rules against a dataset: requests a validation of `data` that runs only
                  the given rules, whether or not they are part of a validation flow, each at its default
                  severity. The result is not considered official. The validation runs asynchronously; this
                  returns as soon as it has been requested, with the correlation id its validation jobs carry.
-            operationId: ValidationRuleService_DryRunValidationRules
+            operationId: ValidationRunService_DryRunValidationRules
             requestBody:
                 content:
                     application/json:
@@ -2127,3 +2127,6 @@ tags:
     description: The gRPC service to view and administrate flows.
   - name: ValidationRuleService
     description: The gRPC service to view and administrate validation rules.
+  - name: ValidationRunService
+    description: The gRPC service to request validation runs of specific validation
+        rules.
