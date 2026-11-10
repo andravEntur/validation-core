@@ -1053,6 +1053,42 @@ paths:
                         application/problem+json:
                             schema:
                                 $ref: '#/components/schemas/ProblemDetail'
+    /validation/v1/rule-dry-runs:
+        post:
+            tags:
+              - ValidationRuleService
+            summary: Dry-run validation rules against a dataset.
+            description: |-
+                Dry-run validation rules against a dataset: requests a validation of `data` that runs only
+                 the given rules, whether or not they are part of a validation flow, each at its default
+                 severity. The result is not considered official. The validation runs asynchronously; this
+                 returns as soon as it has been requested, with the correlation id its validation jobs carry.
+            operationId: ValidationRuleService_DryRunValidationRules
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/DryRunValidationRulesRequest'
+                required: true
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/DryRunValidationRulesResponse'
+                '400':
+                    description: No rules are given, or `data` has no location.
+                    content:
+                        application/problem+json:
+                            schema:
+                                $ref: '#/components/schemas/ProblemDetail'
+                '404':
+                    description: No validation rule exists with one of the given ids.
+                    content:
+                        application/problem+json:
+                            schema:
+                                $ref: '#/components/schemas/ProblemDetail'
     /validation/v1/rules:
         get:
             tags:
@@ -1240,42 +1276,6 @@ paths:
                 '409':
                     description: The `If-Match` header does not match the rule's current
                         ETag.
-                    content:
-                        application/problem+json:
-                            schema:
-                                $ref: '#/components/schemas/ProblemDetail'
-    /validation/v1/rules:dryRun:
-        post:
-            tags:
-              - ValidationRuleService
-            summary: Dry-run validation rules against a dataset.
-            description: |-
-                Dry-run validation rules against a dataset: requests a validation of `data` that runs only
-                 the given rules, whether or not they are part of a validation flow, each at its default
-                 severity. The result is not considered official. The validation runs asynchronously; this
-                 returns as soon as it has been requested, with the correlation id its validation jobs carry.
-            operationId: ValidationRuleService_DryRunValidationRules
-            requestBody:
-                content:
-                    application/json:
-                        schema:
-                            $ref: '#/components/schemas/DryRunValidationRulesRequest'
-                required: true
-            responses:
-                '200':
-                    description: OK
-                    content:
-                        application/json:
-                            schema:
-                                $ref: '#/components/schemas/DryRunValidationRulesResponse'
-                '400':
-                    description: No rules are given, or `data` has no location.
-                    content:
-                        application/problem+json:
-                            schema:
-                                $ref: '#/components/schemas/ProblemDetail'
-                '404':
-                    description: No validation rule exists with one of the given ids.
                     content:
                         application/problem+json:
                             schema:

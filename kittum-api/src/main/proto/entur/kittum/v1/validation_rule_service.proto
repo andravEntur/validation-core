@@ -102,7 +102,7 @@ service ValidationRuleService {
   // returns as soon as it has been requested, with the correlation id its validation jobs carry.
   rpc DryRunValidationRules(DryRunValidationRulesRequest) returns (DryRunValidationRulesResponse) {
     option (google.api.http) = {
-      post: "/validation/v1/rules:dryRun"
+      post: "/validation/v1/rule-dry-runs"
       body: "*"
     };
     option (gnostic.openapi.v3.operation) = {summary: "Dry-run validation rules against a dataset."};
