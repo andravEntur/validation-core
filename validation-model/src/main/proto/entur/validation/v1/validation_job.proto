@@ -22,6 +22,10 @@ message ValidationJob {
   JobStatistics statistics = 2;
   // This job's own progress, one entry per stage.
   repeated StageProgress stages = 3;
+  // Whether this job is a dry run, i.e. its result should not be considered official.
+  bool is_dry_run = 4 [(gnostic.openapi.v3.property) = {
+    example: {yaml: "false"}
+  }];
 }
 
 // One stage's own progress within a validation job.

@@ -5,6 +5,7 @@ import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotSame
 import no.entur.http.buildExtensionRegistry
 import no.entur.http.buildFileDescriptors
 import no.entur.http.newOpenApiYaml
@@ -79,6 +80,13 @@ class OpenApiExampleAugmenterTest {
                             type: string
                         trailing:
                             type: string
+                WithList:
+                    type: object
+                    properties:
+                        ids:
+                            type: array
+                            items:
+                                type: integer
         """.trimIndent()
 
     private fun compileFixture(): DescriptorProtos.FileDescriptorSet {
@@ -166,5 +174,14 @@ class OpenApiExampleAugmenterTest {
             withOneof["example"],
             "secondChoice is mutually exclusive with firstChoice and must not appear alongside it",
         )
+    }
+
+    @Test
+    fun `copies a field's example into the whole-object example instead of sharing it, so YAML writes no anchor`() {
+        val withList = result().at("components", "schemas", "WithList")
+        val fieldExample = withList.at("properties", "ids")["example"]
+        val objectExample = (withList["example"] as Map<*, *>)["ids"]
+        assertEquals(listOf(1, 2), objectExample)
+        assertNotSame(fieldExample, objectExample)
     }
 }

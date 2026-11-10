@@ -343,6 +343,7 @@ components:
                             skippedRules: 0
                             firstProgressReceivedAt: '2026-01-01T00:00:00Z'
                             lastProgressReceivedAt: '2026-01-01T00:05:00Z'
+                    isDryRun: false
                 cursor: eyJpZCI6NjJ9
         Location:
             type: object
@@ -553,6 +554,11 @@ components:
                     items:
                         $ref: '#/components/schemas/StageProgress'
                     description: This job's own progress, one entry per stage.
+                isDryRun:
+                    example: false
+                    type: boolean
+                    description: Whether this job is a dry run, i.e. its result should
+                        not be considered official.
             description: |-
                 A single validation job: the aggregated outcome of validating every stage of one delivery,
                  built up from the ValidationProgress messages received for it so far.
@@ -578,6 +584,7 @@ components:
                         skippedRules: 0
                         firstProgressReceivedAt: '2026-01-01T00:00:00Z'
                         lastProgressReceivedAt: '2026-01-01T00:05:00Z'
+                isDryRun: false
         ValidationRule:
             required:
               - area

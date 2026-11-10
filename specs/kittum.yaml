@@ -1053,6 +1053,42 @@ paths:
                         application/problem+json:
                             schema:
                                 $ref: '#/components/schemas/ProblemDetail'
+    /validation/v1/request-dry-run:
+        post:
+            tags:
+              - ValidationRunService
+            summary: Dry-run validation rules against a dataset.
+            description: |-
+                Dry-run validation rules against a dataset: requests a validation of `data` that runs only
+                 the given rules, whether or not they are part of a validation flow, each at its default
+                 severity. The result is not considered official. The validation runs asynchronously; this
+                 returns as soon as it has been requested, with the correlation id its validation jobs carry.
+            operationId: ValidationRunService_RequestDryRun
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/RequestDryRunRequest'
+                required: true
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/RequestDryRunResponse'
+                '400':
+                    description: No rules are given, or `data` has no location.
+                    content:
+                        application/problem+json:
+                            schema:
+                                $ref: '#/components/schemas/ProblemDetail'
+                '404':
+                    description: No validation rule exists with one of the given ids.
+                    content:
+                        application/problem+json:
+                            schema:
+                                $ref: '#/components/schemas/ProblemDetail'
     /validation/v1/rules:
         get:
             tags:
@@ -1656,6 +1692,56 @@ components:
                 errors:
                   - field: name
                     message: must not be blank
+        RequestDryRunRequest:
+            required:
+              - rules
+              - data
+            type: object
+            properties:
+                rules:
+                    example:
+                      - 1
+                      - 2
+                    minItems: 1
+                    type: array
+                    items:
+                        type: integer
+                        format: int32
+                    description: The database ids of the validation rules to run.
+                        At least one is required.
+                data:
+                    example:
+                        originator: RUT
+                        externalId: rut-1730000000000
+                        payloadType: rutedata
+                        location:
+                            rawGcsUri: gs://example-bucket/rut/netex.zip
+                    allOf:
+                      - $ref: '#/components/schemas/ValidationData'
+                    description: The data to run the rules against. Its location is
+                        required.
+            description: Request for RequestDryRun.
+            example:
+                rules:
+                  - 1
+                  - 2
+                data:
+                    originator: RUT
+                    externalId: rut-1730000000000
+                    payloadType: rutedata
+                    location:
+                        rawGcsUri: gs://example-bucket/rut/netex.zip
+        RequestDryRunResponse:
+            type: object
+            properties:
+                correlationId:
+                    example: 0199a5c2-7b1e-7c3a-9f4e-2d6b8a1c3e5f
+                    type: string
+                    description: The correlation id of the requested validation, carried
+                        by every validation job made from it.
+            description: Response for RequestDryRun.
+            example:
+                correlationId: 0199a5c2-7b1e-7c3a-9f4e-2d6b8a1c3e5f
         RuleFlowItem:
             type: object
             properties:
@@ -1784,6 +1870,41 @@ components:
                         updatedAt: '2026-01-01T00:00:00Z'
                     owner: 2
                     updatedAt: '2026-01-01T00:00:00Z'
+        ValidationData:
+            type: object
+            properties:
+                originator:
+                    type: string
+                    description: The originator of the data.
+                externalId:
+                    type: string
+                    description: An external id that identifies this data.
+                importDateTime:
+                    type: string
+                    description: When the data was imported, if known.
+                    format: date-time
+                payloadType:
+                    type: string
+                    description: The payload type of the data.
+                location:
+                    allOf:
+                      - $ref: '#/components/schemas/ValidationData_Location'
+                    description: The location of the data.
+            description: Information about the data to be validated.
+        ValidationData_Location:
+            type: object
+            properties:
+                rawGcsUri:
+                    type: string
+                    description: A GCS uri to the raw data (XML, ZIP or a folder).
+                localParquetGcsUri:
+                    type: string
+                    description: A GCS uri to the local parquet data (a folder).
+                globalParquetGcsUri:
+                    type: string
+                    description: A GCS uri to the global parquet data (a folder).
+            description: Various places where the data can be stored. One or more
+                must be set.
         ValidationFlow:
             required:
               - name
@@ -2025,3 +2146,6 @@ tags:
     description: The gRPC service to view and administrate flows.
   - name: ValidationRuleService
     description: The gRPC service to view and administrate validation rules.
+  - name: ValidationRunService
+    description: The gRPC service to request validation runs of specific validation
+        rules.
