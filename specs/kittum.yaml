@@ -1468,7 +1468,9 @@ components:
                         description: Validates the file against its XSD.
                         xsdRule:
                             message: File does not match its XSD.
-                            xsdPath: xsd/netex/NeTEx_publication.xsd
+                            schemas:
+                              - versionPattern: 1\.15:NO-NeTEx-networktimetable:1\.5
+                                xsdPath: xsd/netex/NeTEx_publication.xsd
                             fileFilter: .*\.xml
                         updatedAt: '2026-01-01T00:00:00Z'
                     severityOverride: WARNING
@@ -1567,7 +1569,9 @@ components:
                                     description: Validates the file against its XSD.
                                     xsdRule:
                                         message: File does not match its XSD.
-                                        xsdPath: xsd/netex/NeTEx_publication.xsd
+                                        schemas:
+                                          - versionPattern: 1\.15:NO-NeTEx-networktimetable:1\.5
+                                            xsdPath: xsd/netex/NeTEx_publication.xsd
                                         fileFilter: .*\.xml
                                     updatedAt: '2026-01-01T00:00:00Z'
                                 severityOverride: WARNING
@@ -1630,7 +1634,9 @@ components:
                                 description: Validates the file against its XSD.
                                 xsdRule:
                                     message: File does not match its XSD.
-                                    xsdPath: xsd/netex/NeTEx_publication.xsd
+                                    schemas:
+                                      - versionPattern: 1\.15:NO-NeTEx-networktimetable:1\.5
+                                        xsdPath: xsd/netex/NeTEx_publication.xsd
                                     fileFilter: .*\.xml
                                 updatedAt: '2026-01-01T00:00:00Z'
                             severityOverride: WARNING
@@ -1663,7 +1669,9 @@ components:
                     description: Validates the file against its XSD.
                     xsdRule:
                         message: File does not match its XSD.
-                        xsdPath: xsd/netex/NeTEx_publication.xsd
+                        schemas:
+                          - versionPattern: 1\.15:NO-NeTEx-networktimetable:1\.5
+                            xsdPath: xsd/netex/NeTEx_publication.xsd
                         fileFilter: .*\.xml
                     updatedAt: '2026-01-01T00:00:00Z'
                 cursor: eyJpZCI6NjJ9
@@ -1989,7 +1997,9 @@ components:
                     description: Validates the file against its XSD.
                     xsdRule:
                         message: File does not match its XSD.
-                        xsdPath: xsd/netex/NeTEx_publication.xsd
+                        schemas:
+                          - versionPattern: 1\.15:NO-NeTEx-networktimetable:1\.5
+                            xsdPath: xsd/netex/NeTEx_publication.xsd
                         fileFilter: .*\.xml
                     updatedAt: '2026-01-01T00:00:00Z'
                 severityOverride: WARNING
@@ -2069,7 +2079,9 @@ components:
                                 description: Validates the file against its XSD.
                                 xsdRule:
                                     message: File does not match its XSD.
-                                    xsdPath: xsd/netex/NeTEx_publication.xsd
+                                    schemas:
+                                      - versionPattern: 1\.15:NO-NeTEx-networktimetable:1\.5
+                                        xsdPath: xsd/netex/NeTEx_publication.xsd
                                     fileFilter: .*\.xml
                                 updatedAt: '2026-01-01T00:00:00Z'
                             severityOverride: WARNING
@@ -2209,7 +2221,9 @@ components:
                             description: Validates the file against its XSD.
                             xsdRule:
                                 message: File does not match its XSD.
-                                xsdPath: xsd/netex/NeTEx_publication.xsd
+                                schemas:
+                                  - versionPattern: 1\.15:NO-NeTEx-networktimetable:1\.5
+                                    xsdPath: xsd/netex/NeTEx_publication.xsd
                                 fileFilter: .*\.xml
                             updatedAt: '2026-01-01T00:00:00Z'
                         severityOverride: WARNING
@@ -2295,7 +2309,9 @@ components:
                 description: Validates the file against its XSD.
                 xsdRule:
                     message: File does not match its XSD.
-                    xsdPath: xsd/netex/NeTEx_publication.xsd
+                    schemas:
+                      - versionPattern: 1\.15:NO-NeTEx-networktimetable:1\.5
+                        xsdPath: xsd/netex/NeTEx_publication.xsd
                     fileFilter: .*\.xml
                 updatedAt: '2026-01-01T00:00:00Z'
         XPathRule:
@@ -2341,18 +2357,21 @@ components:
         XsdRule:
             required:
               - message
-              - xsdPath
+              - schemas
             type: object
             properties:
                 message:
                     example: File does not match its XSD.
                     type: string
                     description: The message to print if the validation rule fails.
-                xsdPath:
-                    example: xsd/netex/NeTEx_publication.xsd
-                    type: string
-                    description: The path to the XSD, relative to some externally
-                        configured root.
+                schemas:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/XsdSchema'
+                    description: |-
+                        The XSDs to validate a file against, chosen by the version the file declares. Tried in order;
+                         the first whose `version_pattern` matches is used. If no pattern matches a file, the file fails
+                         validation.
                 fileFilter:
                     example: .*\.xml
                     type: string
@@ -2362,8 +2381,33 @@ components:
                 stage STRUCTURAL.
             example:
                 message: File does not match its XSD.
-                xsdPath: xsd/netex/NeTEx_publication.xsd
+                schemas:
+                  - versionPattern: 1\.15:NO-NeTEx-networktimetable:1\.5
+                    xsdPath: xsd/netex/NeTEx_publication.xsd
                 fileFilter: .*\.xml
+        XsdSchema:
+            required:
+              - versionPattern
+              - xsdPath
+            type: object
+            properties:
+                versionPattern:
+                    example: 1\.15:NO-NeTEx-networktimetable:1\.5
+                    type: string
+                    description: |-
+                        A regexp that must match the whole of a file's PublicationDelivery/@version, e.g.
+                         "1.15:NO-NeTEx-networktimetable:1.5". A file without one is matched as the empty string, so
+                         ".*" matches every file.
+                xsdPath:
+                    example: xsd/netex/NeTEx_publication.xsd
+                    type: string
+                    description: The path to the XSD, relative to some externally
+                        configured root.
+            description: An XSD to validate files against, for the files whose declared
+                version matches a pattern.
+            example:
+                versionPattern: 1\.15:NO-NeTEx-networktimetable:1\.5
+                xsdPath: xsd/netex/NeTEx_publication.xsd
 tags:
   - name: AreaService
     description: The gRPC service to view and administrate areas.
