@@ -35,9 +35,9 @@ message ValidationDelivery {
   // Whether the result should be considered official or not.
   bool is_dry_run = 7;
 
-  // Every stage the validation job runs, this delivery's own included. Empty means unknown, which
-  // consumers treat as every stage.
-  repeated ValidationStage job_stages = 8;
+  // Whether this stage is skipped. No rules run for a skipped delivery: the validator only reports
+  // the stage complete with an empty overview (total = 0), so every stage of a job gets a progress.
+  bool skip = 9;
 
   // The timestamp when this validation was requested.
   google.protobuf.Timestamp requested_at = 100;
