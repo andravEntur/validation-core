@@ -37,7 +37,7 @@ message ValidationDelivery {
 
   // Whether this stage is skipped. No rules run for a skipped delivery: the validator only reports
   // the stage complete with an empty overview (total = 0), so every stage of a job gets a progress.
-  bool skip = 9;
+  bool skip = 8;
 
   // The timestamp when this validation was requested.
   google.protobuf.Timestamp requested_at = 100;
