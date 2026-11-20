@@ -20,7 +20,8 @@ message ValidationRequest {
   // tool.
   string requested_by = 4;
 
-  // The validation stages to skip. Empty means every stage runs.
+  // The validation stages to skip. Empty means every stage runs. A skipped stage still gets a
+  // delivery, with skip set, so it reports progress like every other stage.
   repeated ValidationStage skip_stages = 5;
 
   // If specified, only run these rules.
