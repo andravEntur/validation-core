@@ -18,6 +18,7 @@ Several Gradle modules, each published as its own Maven artifact, sharing one ve
 | [`kittum-query-api`](kittum-query-api) | `entur.kittum.query.v1` | `no.entur.validation:kittum-query-api` | Kittum's read-only query API for runtime consumers such as misharum. The frontend-facing `entur.kittum.v1` API is owned by `entur/kittum`. |
 | [`zagar-api`](zagar-api) | `entur.zagar.v1` | `no.entur.validation:zagar-api` | Zagar's gRPC/REST service definitions and their Request/Response messages. |
 | [`ishum-api`](ishum-api) | `entur.ishum.v1` | `no.entur.validation:ishum-api` | Ishum's gRPC/REST service definitions and their Request/Response messages. |
+| [`grpc-openapi-plugin`](grpc-openapi-plugin) | — (Gradle plugin `no.entur.validation.grpc-openapi`) | `no.entur.validation:grpc-openapi-plugin` | buf codegen plus the augmented OpenAPI spec (failure responses, examples, `ProblemDetail`) for a gRPC module with `google.api.http` bindings. Used by this repo's API modules and published so a service that owns its own protos can apply it too. Runs `buf` and `protoc` from the PATH or mise, and otherwise fetches the versions pinned in the workspace's `.mise.toml` (buf checked against a pinned SHA-256), so a bare CI runner needs no setup. A separate included build, versioned and published with the rest. |
 | [`proto-utils`](proto-utils) | — (hand-written, not proto-generated) | `no.entur.validation:proto-utils` | Domain-agnostic proto/HTTP plumbing (update masks, id checks, oneof serialization, timestamps, schema-registry sanitizing). See "Non-schema modules" below. |
 | [`exposed-utils`](exposed-utils) | — (hand-written, not proto-generated) | `no.entur.validation:exposed-utils` | Persistence support for the Exposed SQL library (ETag concurrency, cursor paging) built on `proto-utils`. See "Non-schema modules" below. |
 | [`api-utils`](api-utils) | — (hand-written, not proto-generated) | `no.entur.validation:api-utils` | Spring WebFlux/Security support (protobuf-JSON codecs, `ProblemDetail` error mapping, OpenAPI spec serving, content negotiation, audience-validation and method-security configuration) for services built on this schema. See "Non-schema modules" below. |
@@ -116,8 +117,10 @@ Copy the pattern from [`zagar-api`](zagar-api):
    root [`buf.yaml`](buf.yaml) workspace, with whatever lint exceptions that API needs.
 2. Give it a `buf.gen.yaml` with the `protoc_builtin` java/kotlin plugins and the
    `google-gnostic-openapi` plugin, setting `title`, `version` and `description` for the new API.
-3. Give its `build.gradle.kts` a `bufGenerate` task, a `copyOpenApiSpec` task writing to
-   `specs/<api>.yaml`, and a `processResources` that depends on it and pulls that file into the jar.
+3. Apply the `no.entur.validation.grpc-openapi` plugin (see [`grpc-openapi-plugin`](grpc-openapi-plugin))
+   in its `build.gradle.kts` and configure `grpcOpenApiModule { specFileName = "<api>.yaml" }`, plus
+   `importProtoDirs` for the workspace modules it imports (as in `zagar-api`). The plugin supplies
+   `bufGenerate`, `copyOpenApiSpec` (writing `specs/<api>.yaml`) and the `processResources` wiring.
 4. Add the new spec to the matrix in [`lint-api.yml`](.github/workflows/lint-api.yml) - the
    `gha-api` `path` input takes no globs, so each spec needs its own entry.
 5. Commit the spec the first build produces, and add the module to the Modules table at the top.
