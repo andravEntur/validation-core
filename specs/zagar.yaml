@@ -294,11 +294,11 @@ components:
                 items:
                   - validationRule:
                         id: 1
-                        area: 7
                         defaultSeverity: ERROR
                         stage: STRUCTURAL
                         name: netex-xsd
                         description: Validates the file against its XSD.
+                        owner: 2
                         xsdRule:
                             message: File does not match its XSD.
                             schemas:
@@ -456,11 +456,11 @@ components:
             example:
                 validationRule:
                     id: 1
-                    area: 7
                     defaultSeverity: ERROR
                     stage: STRUCTURAL
                     name: netex-xsd
                     description: Validates the file against its XSD.
+                    owner: 2
                     xsdRule:
                         message: File does not match its XSD.
                         schemas:
@@ -591,23 +591,17 @@ components:
                 isDryRun: false
         ValidationRule:
             required:
-              - area
               - defaultSeverity
               - stage
               - name
               - description
+              - owner
             type: object
             properties:
                 id:
                     example: 1
                     type: integer
                     description: The database id of the validation rule.
-                    format: int32
-                area:
-                    example: 7
-                    type: integer
-                    description: The database id of the area that owns the validation
-                        rule.
                     format: int32
                 defaultSeverity:
                     example: ERROR
@@ -638,6 +632,11 @@ components:
                     example: Validates the file against its XSD.
                     type: string
                     description: A textual description of the validation rule.
+                owner:
+                    example: 2
+                    type: integer
+                    description: The database id of the owner of the validation rule.
+                    format: int32
                 xsdRule:
                     allOf:
                       - $ref: '#/components/schemas/XsdRule'
@@ -658,14 +657,14 @@ components:
                         The timestamp the validation rule was last updated. Always populated by the server; a
                          value set by the client is ignored, not an error.
                     format: date-time
-            description: A single validation rule, owned by one Area.
+            description: A single validation rule, scoped to one or more Areas.
             example:
                 id: 1
-                area: 7
                 defaultSeverity: ERROR
                 stage: STRUCTURAL
                 name: netex-xsd
                 description: Validates the file against its XSD.
+                owner: 2
                 xsdRule:
                     message: File does not match its XSD.
                     schemas:
